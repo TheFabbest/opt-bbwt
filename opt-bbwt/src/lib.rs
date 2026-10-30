@@ -5,3 +5,4 @@ pub mod rank;
 pub mod heuristics;
 pub mod bbwt;
 pub mod optimalbbwt;
+pub mod file;

@@ -33,6 +33,7 @@ pub fn sort_all_factors(s: &[u8]) -> usize {
 
     // concatenate them into a single string
     let result = sorted_factors.concat();
+    println!("Concatenated is {}% of the original string length.", result.len() as f64 / s.len() as f64 * 100.0);
 
     // check
     if correctness_checks {
