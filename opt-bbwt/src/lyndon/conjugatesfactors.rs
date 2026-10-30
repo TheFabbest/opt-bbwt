@@ -67,19 +67,15 @@ pub fn get_factor_with_conjugates_counts(aperiodic_least_rotation: &[u8]) -> std
     // suffix array construction
     let mut sa = vec![0; n];
     saca::optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa);
-    println!("Suffix Array: {:?}", sa);
 
     // rank array
     let rank = rank::sa_to_rank(&sa);
-    println!("Rank Array: {:?}", rank);
 
     // lyndon table
     let lyndon_table = lyndon::lyndontables::lyndon_table(&aperiodic_least_rotation, &rank);
-    println!("Lyndon Table: {:?}", lyndon_table);
 
     // lyndon suffix table
     let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(&aperiodic_least_rotation);
-    println!("Lyndon Suffix Table: {:?}", lyndon_suffix_table);
 
     let mut factors_with_counts: std::collections::HashMap<Vec<u8>, Vec<usize>> = std::collections::HashMap::new();
     
@@ -112,7 +108,6 @@ pub fn get_factor_with_conjugates_counts(aperiodic_least_rotation: &[u8]) -> std
         let mut my_factor_end = i;
         
         while my_factor_end > 0 {
-            // FIX: Use lyndon_suffix_table instead of lyndon_table
             let my_factor_length = lyndon_suffix_table[my_factor_end - 1];
             let factor_start = my_factor_end - my_factor_length;
             let factor = &aperiodic_least_rotation[factor_start..my_factor_end];

@@ -13,7 +13,6 @@ fn omega_cmp(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
 pub fn bbwt(text: &[u8]) -> Vec<u8> {
     // 1. Find Lyndon factors
     let factors = duval(&text);
-    println!("Lyndon factors: {:?}", factors);
 
     // 2. Generate all cyclic rotations (conjugates) for each factor
     let mut conjugates = Vec::new();

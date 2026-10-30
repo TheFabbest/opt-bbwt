@@ -16,26 +16,28 @@ fn consistency_check (result: &String, sorted_factors: &Vec<String>) {
         };
         let factor = &result.as_bytes()[factor_start..factor_start + factor_length];
         
-        assert!(factor == sorted_factors[count].as_bytes());
+        assert!(factor == sorted_factors[count].as_bytes(), "Consistency check failed: factor {:?} does not match sorted factor {:?}", String::from_utf8_lossy(factor), sorted_factors[count]);
         count += 1;
     }
 }
 
-pub fn sort_all_factors(s: &[u8]) {
+pub fn sort_all_factors(s: &[u8]) -> usize {
+    let correctness_checks = false; // set to true to enable correctness checks, which will slow down the program significantly
+
     // put all factors into a set, together with an array that maps each conjugate index to the number of appearances of the factor in that conjugate
     let factors = get_factor_with_conjugates_counts(s);
 
-    // sort them in reverse lexicographical order
+    // sort them in reverse lexicographical order (it's the same as omega-order because they are all Lyndon words)
     let mut sorted_factors: Vec<String> = factors.keys().map(|k| String::from_utf8_lossy(k).to_string()).collect();
     sorted_factors.sort_by(|a, b| b.cmp(a));
 
     // concatenate them into a single string
     let result = sorted_factors.concat();
-    println!("Resulting string: {}", result);
-    println!("Resulting string length: {}. This is {}% of the original.", result.len(), (result.len() as f64 / s.len() as f64) * 100.0);
 
     // check
-    consistency_check(&result, &sorted_factors);
+    if correctness_checks {
+        consistency_check(&result, &sorted_factors);
+    }
 
     // compute the circular suffix array of the result
     let mut circular_sa = &mut vec![0; result.len()];
@@ -44,8 +46,9 @@ pub fn sort_all_factors(s: &[u8]) {
     // count the number of runs in all conjugates' BBWTs
     let mut total_runs = vec![0; s.len()];
     let mut last_characters = vec![0; s.len()];
+
     // keep track of the built bbwt for debugging
-    let mut built_bbwt = vec![vec![]; s.len()];
+    let mut built_bbwt= vec![vec![]; s.len()];
 
     for i in 0..result.len() {
         // for building the bbwt, we need refer to circular_sa[i] as the starting index of the conjugate
@@ -53,6 +56,7 @@ pub fn sort_all_factors(s: &[u8]) {
         let start_index = circular_sa[i];
         
         // find the lyndon factor that contains start_index in result, can be obtained in sorted_factors by finding the first factor ending after start_index
+        // linear on the number of factors, can be improved
         let mut factor_start = 0;
         let mut factor_length = 0;
         for factor in &sorted_factors {
@@ -63,6 +67,7 @@ pub fn sort_all_factors(s: &[u8]) {
             factor_start += factor_length;
         }
 
+        // the previous index is the index of the character before the start_index in the current lyndon factor, wrapping around the factor if necessary
         let previous_index = factor_start + (start_index - factor_start + factor_length - 1) % factor_length;
         let predecessor = result.as_bytes()[previous_index];
 
@@ -73,7 +78,9 @@ pub fn sort_all_factors(s: &[u8]) {
             let occurrences = conjugates[conjugate_index];
             if occurrences > 0 {
                 // we add the predecessor to the bbwt occurrences times
-                built_bbwt[conjugate_index].extend(std::iter::repeat(predecessor).take(occurrences));
+                if correctness_checks {
+                    built_bbwt[conjugate_index].extend(std::iter::repeat(predecessor).take(occurrences));
+                }
 
                 if last_characters[conjugate_index] != predecessor {
                     total_runs[conjugate_index] += 1; // every occurrences repetitions of this factor's conjugate repeats the same predecessor, so we only count one new run, and only if the predecessor is different
@@ -83,16 +90,39 @@ pub fn sort_all_factors(s: &[u8]) {
         }
     }
 
-    // for each conjugate, print the number of runs in its BBWT
-    for i in 0..s.len() {
-        println!("--------------------------------");
-        println!("Conjugate starting at index {}: {} runs in BBWT", i, total_runs[i]);
-        let its_bbwt = built_bbwt[i].iter().collect::<Vec<&u8>>().iter().map(|&&c| c as char).collect::<String>();
-        println!("In fact, its BBWT is: {:?}", its_bbwt);
-        assert_eq!(its_bbwt, String::from_utf8_lossy(&bbwt(&s[i..].iter().chain(&s[..i]).cloned().collect::<Vec<u8>>())));
+
+    if correctness_checks {
+        // for each conjugate, print the number of runs in its BBWT
+        for i in 0..s.len() {
+            println!("--------------------------------");
+            println!("Conjugate starting at index {}: {} runs in BBWT", i, total_runs[i]);
+            let its_bbwt = built_bbwt[i].iter().collect::<Vec<&u8>>().iter().map(|&&c| c as char).collect::<String>();
+            println!("In fact, its BBWT is: {:?}", its_bbwt);
+            assert_eq!(its_bbwt, String::from_utf8_lossy(&bbwt(&s[i..].iter().chain(&s[..i]).cloned().collect::<Vec<u8>>())));
+        }
     }
+
+    // return the index of the max in total_runs
+    total_runs.iter().enumerate().max_by_key(|&(_, count)| count).map(|(index, _)| index).unwrap()
 }
 
+pub fn naive_optimal_bbwt(s: &[u8]) -> usize {
+    let n = s.len();
+    
+    let mut max_runs_index = 0;
+    let mut max_runs = 0;
+    for i in 0..n {
+        let conjugate: Vec<u8> = s[i..].iter().chain(&s[..i]).cloned().collect();
+        let bbwt_result = bbwt(&conjugate);
+        let runs = bbwt_result.windows(2).filter(|w| w[0] != w[1]).count() + 1; // count runs in BBWT
+        if runs > max_runs {
+            max_runs = runs;
+            max_runs_index = i;
+        }
+    }
+
+    max_runs_index
+}
 pub fn online_bbwt_check(input_s: &[u8]) {
     let n = input_s.len();
     if n == 0 { return; }
