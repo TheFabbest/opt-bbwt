@@ -1,4 +1,4 @@
-use crate::bbwt::{bbwt, bbwt_with_rank}; use crate::lyndon::conjugatesfactors::{for_each_factor_of_each_conjugate, get_factor_with_conjugates_counts};
+use crate::bbwt::{bbwt, bbwt_with_rank}; use crate::lyndon::conjugatesfactors::{get_factor_with_conjugates_counts};
 // Must return (bbwt_array, bbwt_rank)
 use crate::lyndon::{duval, lyndon_suffix_table, lyndon_table};
 use crate::rank::sa_to_rank;
@@ -47,22 +47,6 @@ pub fn sort_all_factors(s: &[u8]) {
     // keep track of the built bbwt for debugging
     let mut built_bbwt = vec![vec![]; s.len()];
 
-    // for debug, print the factors of the 5th conjugate
-    // rotate s
-    let rotated_s: Vec<u8> = s[4..].iter().chain(&s[..4]).cloned().collect();
-    let rotated_factors = duval(&rotated_s);
-    println!("Rotated string: {}", String::from_utf8_lossy(&rotated_s));
-    println!("Factors of the 5th conjugate:");
-    for &factor_start in &rotated_factors {
-        let factor_length = if let Some(&next_start) = rotated_factors.iter().find(|&&s| s > factor_start) {
-            next_start - factor_start
-        } else {
-            rotated_s.len() - factor_start
-        };
-        let factor = &rotated_s[factor_start..factor_start + factor_length];
-        println!("factor {}", String::from_utf8_lossy(factor));
-    }
-
     for i in 0..result.len() {
         // for building the bbwt, we need refer to circular_sa[i] as the starting index of the conjugate
         // the BBWT requires the predecessor of circular_sa[i] in result, rotated to the start of the lyndon factor that contains circular_sa[i]
@@ -85,18 +69,14 @@ pub fn sort_all_factors(s: &[u8]) {
         // now we know the predecessor and can tell whether it created a new run or not in each conjugate where the factor appears
         let conjugates = factors.get(result.as_bytes()[factor_start..factor_start + factor_length].as_ref()).unwrap();
 
-        // debug
-        println!("Computing {}-th entry in result, which refers to the conjugate {} of the factor {}. The predecessor of the conjugate is {}. The factor appears in conjugates {:?}", i, start_index, String::from_utf8_lossy(&result.as_bytes()[factor_start..factor_start + factor_length]), predecessor, conjugates);
-
         for conjugate_index in 0..conjugates.len() {
             let occurrences = conjugates[conjugate_index];
-            if conjugates[conjugate_index] > 0 {
-                // we add the predecessor to the bbwt conjugates[conjugate_index] times
-                built_bbwt[conjugate_index].extend(std::iter::repeat(predecessor).take(conjugates[conjugate_index]));
+            if occurrences > 0 {
+                // we add the predecessor to the bbwt occurrences times
+                built_bbwt[conjugate_index].extend(std::iter::repeat(predecessor).take(occurrences));
 
-                println!("Conjugate {}: last character was {}, predecessor is {} and will appear {} times in the bbwt", conjugate_index, last_characters[conjugate_index], predecessor, conjugates[conjugate_index]);
                 if last_characters[conjugate_index] != predecessor {
-                    total_runs[conjugate_index] += 1; // every conjugates[conjugate_index] repetitions of this factor's conjugate repeats the same predecessor, so we only count one new run, and only if the predecessor is different
+                    total_runs[conjugate_index] += 1; // every occurrences repetitions of this factor's conjugate repeats the same predecessor, so we only count one new run, and only if the predecessor is different
                 }
                 last_characters[conjugate_index] = predecessor;
             }
@@ -107,8 +87,9 @@ pub fn sort_all_factors(s: &[u8]) {
     for i in 0..s.len() {
         println!("--------------------------------");
         println!("Conjugate starting at index {}: {} runs in BBWT", i, total_runs[i]);
-        println!("In fact, its BBWT is: {:?}", bbwt(&s[i..].iter().chain(&s[..i]).cloned().collect::<Vec<u8>>()));
-        println!("Built BBWT: {:?}", built_bbwt[i]);
+        let its_bbwt = built_bbwt[i].iter().collect::<Vec<&u8>>().iter().map(|&&c| c as char).collect::<String>();
+        println!("In fact, its BBWT is: {:?}", its_bbwt);
+        assert_eq!(its_bbwt, String::from_utf8_lossy(&bbwt(&s[i..].iter().chain(&s[..i]).cloned().collect::<Vec<u8>>())));
     }
 }
 
