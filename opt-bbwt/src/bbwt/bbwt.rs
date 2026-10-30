@@ -41,3 +41,37 @@ pub fn bbwt(text: &[u8]) -> Vec<u8> {
 
     transformed
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bbwt_empty() {
+        let s = b"";
+        let transformed = bbwt(s);
+        assert_eq!(transformed, b"");
+    }
+
+    #[test]
+    fn test_bbwt_single_char() {
+        let s = b"a";
+        let transformed = bbwt(s);
+        assert_eq!(transformed, b"a");
+    }
+
+    #[test]
+    fn test_bbwt_vs_naive() {
+        let test_strings = vec![
+            b"banana".to_vec(),
+            b"abracadabra".to_vec(),
+            b"".to_vec(),
+            b"a".to_vec()];
+        for s in test_strings {
+            let transformed = bbwt(&s);
+            let naive_transformed = crate::naive::bbwt::bbwt(&s);
+            assert_eq!(transformed, naive_transformed, "BBWT mismatch for input: {:?}", String::from_utf8_lossy(&s));
+        }
+    }
+}

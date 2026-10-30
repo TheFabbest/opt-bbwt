@@ -12,3 +12,36 @@ pub fn bwt(s: &[u8]) -> Vec<u8> {
     }
     bbwt
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_bwt() {
+        let s = b"banana";
+        let expected_bwt = b"nnbaaa";
+        let input = s.to_vec();
+        let result = bwt(&input);
+        assert_eq!(result, expected_bwt);
+    }
+
+    #[test]
+    fn test_bwt_empty() {
+        let s = b"";
+        let expected_bwt = b"";
+        let input = s.to_vec();
+        let result = bwt(&input);
+        assert_eq!(result, expected_bwt);
+    }
+
+    #[test]
+    fn test_bwt_single_char() {
+        let s = b"a";
+        let expected_bwt = b"a";
+        let input = s.to_vec();
+        let result = bwt(&input);
+        assert_eq!(result, expected_bwt);
+    }
+}
