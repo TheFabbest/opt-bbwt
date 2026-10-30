@@ -1,23 +1,16 @@
-use opt_bbwt::lyndon::{self, CanonicalRotationFinder, conjugatesfactors::for_each_factor_of_each_conjugate, duval, shiloach};
+use opt_bbwt::lyndon::{CanonicalRotationFinder, shiloach};
 
 fn main() {
-    let s = b"bbaabca";
+    //let s = b"bbaabca";
     //lyndon::print_all_factors(s);
 
-    // text is a randomly generated DNA string (&[u8]) of length 1000
-    let generated: Vec<u8> = (0..100).map(|_| {
-        let n = rand::random::<u8>() % 4;
-        match n {
-            0 => b'A',
-            1 => b'C',
-            2 => b'G',
-            _ => b'T',
-        }
-    }).collect();
-    let text = generated.as_slice();
+    // text is the first characters from the dna corpus
+    let corpus_size = 2_000;
+    let corpus = opt_bbwt::file::load_corpus("dna", corpus_size);
+    let text = corpus.expect("Failed to load corpus");
 
     let finder = shiloach::Shiloach;
-    let (start, period_length) = finder.find(text);
+    let (start, period_length) = finder.find(&text);
 
     // first `period_length` characters of the least rotation, wrapping around the end
     let aperiodic_least_rotation: Vec<u8> =

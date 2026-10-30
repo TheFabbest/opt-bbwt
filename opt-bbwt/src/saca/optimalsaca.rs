@@ -1,7 +1,5 @@
 use std::cmp::Ordering;
 
-use crate::lyndon::duval;
-
 // Special sentinel constants
 const BT: usize = usize::MAX;
 const BH: usize = usize::MAX - 1;
@@ -922,47 +920,4 @@ pub fn optimal_suffix_array_recursive(input: &[usize], sa: &mut [usize]) {
 pub fn optimal_suffix_array_bytes(input_chars: &[u8], sa: &mut [usize]) {
     let input = chars_to_usize_array(input_chars);
     optimal_suffix_array_recursive(&input, sa);
-}
-
-
-
-
-// TODO naive
-fn omega_cmp(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
-    // Compare their infinite expansions a.iter().cycle() and b.iter().cycle()
-    let len_lcm = a.len() * b.len(); // or compare up to a.len() * b.len() steps
-    let inf_a = a.iter().cycle().take(len_lcm);
-    let inf_b = b.iter().cycle().take(len_lcm);
-    inf_a.cmp(inf_b)
-}
-
-// TODO naive
-// circular suffix array
-pub fn circular_suffix_array(s: &[u8], sa: &mut [usize]) {
-    
-    // duval
-    let factors = duval(s);
-
-    // get all rotations of all factors, keep track of their starting indices in the original string
-    let mut rotations = Vec::new();
-    for &factor_start in &factors {
-        let factor_len = if let Some(&next_start) = factors.iter().find(|&&s| s > factor_start) {
-            next_start - factor_start
-        } else {
-            s.len() - factor_start
-        };
-        let factor = &s[factor_start..factor_start + factor_len];
-        for i in 0..factor_len {
-            let rotation = factor[i..].iter().chain(factor[..i].iter()).cloned().collect::<Vec<u8>>();
-            rotations.push((rotation, factor_start + i));
-        }
-    }
-
-    // sort rotations according to omega order
-    rotations.sort_by(|a, b| omega_cmp(&a.0, &b.0));
-
-    // populate the suffix array with the starting indices of the sorted rotations
-    for (i, (_, start)) in rotations.into_iter().enumerate() {
-        sa[i] = start;
-    }
 }

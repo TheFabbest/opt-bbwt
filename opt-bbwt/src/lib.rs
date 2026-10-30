@@ -3,6 +3,8 @@ pub mod string;
 pub mod saca;
 pub mod rank;
 pub mod heuristics;
+pub mod bwt;
 pub mod bbwt;
 pub mod optimalbbwt;
 pub mod file;
+pub mod naive;

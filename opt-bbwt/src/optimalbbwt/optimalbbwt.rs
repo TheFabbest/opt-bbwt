@@ -1,6 +1,6 @@
-use crate::bbwt::{bbwt, bbwt_with_rank}; use crate::lyndon::conjugatesfactors::{get_factor_with_conjugates_counts};
-// Must return (bbwt_array, bbwt_rank)
+use crate::bbwt::{bbwt}; use crate::lyndon::conjugatesfactors::{get_factor_with_conjugates_counts};
 use crate::lyndon::{duval, lyndon_suffix_table, lyndon_table};
+use crate::naive::bbwt::bbwt_with_rank;
 use crate::rank::sa_to_rank;
 use crate::saca::circular_suffix_array;
 
@@ -41,8 +41,7 @@ pub fn sort_all_factors(s: &[u8]) -> usize {
     }
 
     // compute the circular suffix array of the result
-    let mut circular_sa = &mut vec![0; result.len()];
-    circular_suffix_array(result.as_bytes(), &mut circular_sa);
+    let circular_sa = circular_suffix_array(result.as_bytes());
     
     // count the number of runs in all conjugates' BBWTs
     let mut total_runs = vec![0; s.len()];
@@ -99,7 +98,8 @@ pub fn sort_all_factors(s: &[u8]) -> usize {
             println!("Conjugate starting at index {}: {} runs in BBWT", i, total_runs[i]);
             let its_bbwt = built_bbwt[i].iter().collect::<Vec<&u8>>().iter().map(|&&c| c as char).collect::<String>();
             println!("In fact, its BBWT is: {:?}", its_bbwt);
-            assert_eq!(its_bbwt, String::from_utf8_lossy(&bbwt(&s[i..].iter().chain(&s[..i]).cloned().collect::<Vec<u8>>())));
+            let expected_bbwt = bbwt(&s[i..].iter().chain(&s[..i]).cloned().collect::<Vec<u8>>());
+            assert_eq!(its_bbwt.as_bytes(), expected_bbwt.as_slice(), "Built BBWT does not match expected BBWT for conjugate starting at index {}", i);
         }
     }
 
@@ -130,8 +130,7 @@ pub fn online_bbwt_check(input_s: &[u8]) {
 
     // 1. FORCE THE LYNDON CONJUGATE ASSUMPTION
     // Find the least rotation to ensure the base string IS a Lyndon word.
-    let mut circular_sa = vec![0; n];
-    crate::saca::circular_suffix_array(input_s, &mut circular_sa);
+    let mut circular_sa = circular_suffix_array(input_s);
     let least_rotation_idx = circular_sa[0];
     
     let s: Vec<u8> = input_s[least_rotation_idx..].iter()
@@ -142,7 +141,7 @@ pub fn online_bbwt_check(input_s: &[u8]) {
     println!("Base Lyndon Conjugate: {}", String::from_utf8_lossy(&s));
 
     // 2. Compute tables on the valid Lyndon Conjugate
-    crate::saca::circular_suffix_array(&s, &mut circular_sa);
+    circular_sa = circular_suffix_array(&s);
     let lyn_suffix_table = lyndon_suffix_table(&s);
     let sa_rank = sa_to_rank(&circular_sa);
     let lyn_table = lyndon_table(&s, &sa_rank); 
