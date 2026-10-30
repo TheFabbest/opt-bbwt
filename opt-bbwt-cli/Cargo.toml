@@ -1,0 +1,10 @@
+[package]
+name = "opt-bbwt-cli"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[dependencies]
+opt-bbwt = { path = "../opt-bbwt" }
+rand = "0.10.3"
