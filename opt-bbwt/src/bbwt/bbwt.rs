@@ -131,4 +131,26 @@ mod tests {
             assert_eq!(transformed, naive_transformed, "BBWT mismatch for input: {:?}", String::from_utf8_lossy(&s));
         }
     }
+
+    #[test]
+    fn test_unbbwt_empty() {
+        let s = b"";
+        let restored = unbbwt(s);
+        assert_eq!(restored, b"");
+    }
+
+    #[test]
+    fn test_unbbwt_single_char() {
+        let s = b"a";
+        let restored = unbbwt(s);
+        assert_eq!(restored, b"a");
+    }
+
+    #[test]
+    fn test_unbbwt_simple() {
+        let s = b"banana";
+        let transformed = bbwt(s);
+        let restored = unbbwt(&transformed);
+        assert_eq!(restored, s);
+    }
 }
