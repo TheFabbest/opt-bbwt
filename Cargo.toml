@@ -14,3 +14,6 @@ repository = "https://github.com/TheFabbest/opt-bbwt"
 
 # Shared dependencies for the entire workspace
 [workspace.dependencies]
+
+[profile.release]
+debug = true

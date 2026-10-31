@@ -56,9 +56,11 @@ where
 
 }
 
-// returns each factor of each conjugate of the string,
-//  together with a list of counts of how many times the factor appears in each conjugate
-pub fn get_factor_with_conjugates_counts(aperiodic_least_rotation: &[u8]) -> std::collections::HashMap<Vec<u8>, Vec<usize>> {
+// Notice the lifetime 'a: we are now returning slices of the original string, 
+// completely eliminating heap allocations for the factors!
+pub fn get_factor_with_conjugates_set<'a>(
+    aperiodic_least_rotation: &'a [u8],
+) -> std::collections::HashMap<&'a [u8], Vec<usize>> {
     let n = aperiodic_least_rotation.len();
     if n == 0 {
         return std::collections::HashMap::new();
@@ -66,39 +68,32 @@ pub fn get_factor_with_conjugates_counts(aperiodic_least_rotation: &[u8]) -> std
 
     // suffix array construction
     let mut sa = vec![0; n];
-    saca::optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa);
+    saca::optimal_suffix_array_bytes(aperiodic_least_rotation, &mut sa);
 
-    // rank array
     let rank = rank::sa_to_rank(&sa);
+    let lyndon_table = lyndon::lyndontables::lyndon_table(aperiodic_least_rotation, &rank);
+    let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(aperiodic_least_rotation);
 
-    // lyndon table
-    let lyndon_table = lyndon::lyndontables::lyndon_table(&aperiodic_least_rotation, &rank);
+    // Using HashMap<&[u8], Vec<usize>> instead of HashMap<Vec<u8>, HashSet<usize>>
+    let mut factors_with_counts: std::collections::HashMap<&'a [u8], Vec<usize>> =
+        std::collections::HashMap::new();
 
-    // lyndon suffix table
-    let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(&aperiodic_least_rotation);
-
-    let mut factors_with_counts: std::collections::HashMap<Vec<u8>, Vec<usize>> = std::collections::HashMap::new();
-    
-    // the whole string is a factor that appears only in the first conjugate
-    factors_with_counts.insert(aperiodic_least_rotation.to_vec(), vec![0; n]); 
-    factors_with_counts.get_mut(aperiodic_least_rotation).unwrap()[0] = 1;
+    factors_with_counts.insert(aperiodic_least_rotation, vec![0]);
 
     // Process suffixes
     for i in (1..n).rev() {
         let mut factor_start = i;
-        
         while factor_start < n {
             let factor_length = lyndon_table[factor_start];
             let factor = &aperiodic_least_rotation[factor_start..factor_start + factor_length];
             
-            // if the factor is missing, add the couple (factor, empty vector of n zeros) to the set
-            if !factors_with_counts.contains_key(factor) {
-                factors_with_counts.insert(factor.to_vec(), vec![0; n]);
+            // Entry API: 1 hash lookup instead of 3.
+            let list = factors_with_counts.entry(factor).or_insert_with(Vec::new);
+            
+            // Fast sequential deduplication
+            if list.last() != Some(&i) {
+                list.push(i);
             }
-
-            // Increment the count for this factor in the conjugate starting at index i
-            factors_with_counts.get_mut(factor).unwrap()[i] += 1;
-
             factor_start += factor_length;
         }
     }
@@ -106,23 +101,25 @@ pub fn get_factor_with_conjugates_counts(aperiodic_least_rotation: &[u8]) -> std
     // Process prefixes
     for i in 1..n {
         let mut my_factor_end = i;
-        
         while my_factor_end > 0 {
             let my_factor_length = lyndon_suffix_table[my_factor_end - 1];
             let factor_start = my_factor_end - my_factor_length;
             let factor = &aperiodic_least_rotation[factor_start..my_factor_end];
             
-            // if the factor is missing, add the couple (factor, empty vector of n zeros) to the set
-            if !factors_with_counts.contains_key(factor) {
-                factors_with_counts.insert(factor.to_vec(), vec![0; n]);
+            let list = factors_with_counts.entry(factor).or_insert_with(Vec::new);
+            if list.last() != Some(&i) {
+                list.push(i);
             }
-
-            // Increment the count for this factor in the conjugate starting at index i
-            factors_with_counts.get_mut(factor).unwrap()[i] += 1;
-
-            // Safely step backward to prevent usize underflow
             my_factor_end = factor_start;
         }
+    }
+
+    // Because items were added from a descending loop and an ascending loop,
+    // we do one final fast dedup to ensure absolute uniqueness. 
+    // This is significantly faster than hashing every single insertion in a HashSet!
+    for list in factors_with_counts.values_mut() {
+        list.sort_unstable();
+        list.dedup();
     }
 
     factors_with_counts

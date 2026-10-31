@@ -1,3 +1,3 @@
 pub mod optimalbbwt;
 
-pub use self::optimalbbwt::{online_bbwt_check, sort_all_factors, naive_optimal_bbwt};
+pub use self::optimalbbwt::{online_bbwt_check, naive_optimal_bbwt, optimal_bbwt_through_w};

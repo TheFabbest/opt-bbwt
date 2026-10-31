@@ -5,7 +5,7 @@ fn main() {
     //lyndon::print_all_factors(s);
 
     // text is the first characters from the dna corpus
-    let corpus_size = 2_000;
+    let corpus_size = 3000;
     let corpus = opt_bbwt::file::load_corpus("dna", corpus_size);
     let text = corpus.expect("Failed to load corpus");
 
@@ -23,8 +23,13 @@ fn main() {
     let naive_time = start_time.elapsed();
     println!("Naive optimal BBWT index: {}. Time taken: {:?}", naive_result, naive_time);
 
+    // let start_time = std::time::Instant::now();
+    // let mine = opt_bbwt::optimalbbwt::sort_all_factors(aperiodic_least_rotation.as_slice());
+    // let mine_time = start_time.elapsed();\
+    // println!("My optimal BBWT index: {}. Time taken: {:?}", mine, mine_time);
+
     let start_time = std::time::Instant::now();
-    let optimal_result = opt_bbwt::optimalbbwt::sort_all_factors(aperiodic_least_rotation.as_slice());
+    let runs = opt_bbwt::optimalbbwt::optimal_bbwt_through_w(&aperiodic_least_rotation);
     let optimal_time = start_time.elapsed();
-    println!("Optimal BBWT index: {}. Time taken: {:?}", optimal_result, optimal_time);
+    println!("Optimal BBWT index (through w): {}. Time taken: {:?}", runs, optimal_time);
 }
