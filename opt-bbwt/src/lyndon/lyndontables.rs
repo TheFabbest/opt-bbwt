@@ -47,6 +47,9 @@ pub fn compute_lyn_optimized(s: &[u8], rank: &[usize], lyn_s: &[usize]) -> Vec<u
 }
 
 pub fn lyndon_suffix_table(s: &[u8]) -> Vec<usize> {
+    if s.is_empty() {
+        return vec![];
+    }
     let mut lyndon_suffix_table = vec![0; s.len()];
     lyndon_suffix_table[0] = 1;
     let mut per = 1;
@@ -62,4 +65,82 @@ pub fn lyndon_suffix_table(s: &[u8]) -> Vec<usize> {
         }
     }
     lyndon_suffix_table
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_lyndon_table_empty() {
+        let s = b"";
+        let rank = vec![];
+        let expected: Vec<usize> = vec![];
+        assert_eq!(lyndon_table(s, &rank), expected);
+    }
+
+    #[test]
+    fn test_lyndon_table_single_char() {
+        let s = b"a";
+        let rank = vec![0];
+        let expected = vec![1];
+        assert_eq!(lyndon_table(s, &rank), expected);
+    }
+
+    #[test]
+    fn test_lyndon_table_simple() {
+        let s = b"banana";
+        let rank = vec![3, 2, 5, 1, 4, 0];
+        let expected = vec![1, 2, 1, 2, 1, 1];
+        assert_eq!(lyndon_table(s, &rank), expected);
+    }
+
+    #[test]
+    fn test_lyndon_suffix_table_empty() {
+        let s = b"";
+        let expected: Vec<usize> = vec![];
+        assert_eq!(lyndon_suffix_table(s), expected);
+    }
+
+    #[test]
+    fn test_lyndon_suffix_table_single_char() {
+        let s = b"a";
+        let expected = vec![1];
+        assert_eq!(lyndon_suffix_table(s), expected);
+    }
+
+    #[test]
+    fn test_lyndon_suffix_table_simple() {
+        let s = b"banana";
+        let expected = vec![1, 2, 3, 4, 5, 6];
+        assert_eq!(lyndon_suffix_table(s), expected);
+    }
+
+    #[test]
+    fn test_lyndon_table_optimized_empty() {
+        let s = b"";
+        let rank = vec![];
+        let lyn_s = vec![];
+        let expected: Vec<usize> = vec![];
+        assert_eq!(compute_lyn_optimized(s, &rank, &lyn_s), expected);
+    }
+
+    #[test]
+    fn test_lyndon_table_optimized_single_char() {
+        let s = b"a";
+        let rank = vec![0];
+        let lyn_s = vec![1];
+        let expected = vec![1];
+        assert_eq!(compute_lyn_optimized(s, &rank, &lyn_s), expected);
+    }
+
+    #[test]
+    fn test_lyndon_table_optimized_simple() {
+        let s = b"banana";
+        let rank = vec![3, 2, 5, 1, 4, 0];
+        let lyn_s = vec![1, 2, 1, 2, 1, 1];
+        let expected = vec![1, 2, 1, 2, 1, 1];
+        assert_eq!(compute_lyn_optimized(s, &rank, &lyn_s), expected);
+    }
 }

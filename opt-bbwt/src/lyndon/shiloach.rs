@@ -125,3 +125,36 @@ fn phase_two<T: Ord>(s: &[T], alpha: usize, beta: usize) -> usize {
     }
     gamma
 }
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_shiloach_empty() {
+        let finder = Shiloach;
+        let s: &[u8] = b"";
+        let (index, d) = finder.find(s);
+        assert_eq!(index, 0);
+        assert_eq!(d, 0);
+    }
+
+    #[test]
+    fn test_shiloach_single() {
+        let finder = Shiloach;
+        let s: &[u8] = b"a";
+        let (index, d) = finder.find(s);
+        assert_eq!(index, 0);
+        assert_eq!(d, 1);
+    }
+
+    #[test]
+    fn test_shiloach_simple() {
+        let finder = Shiloach;
+        let s: &[u8] = b"banana";
+        let (index, d) = finder.find(s);
+        assert_eq!(index, 5);
+        assert_eq!(d, 6);
+    }
+}

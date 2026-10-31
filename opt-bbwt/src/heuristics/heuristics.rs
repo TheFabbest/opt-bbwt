@@ -1,5 +1,8 @@
 pub fn most_factors(lyndon_table: &[usize], lyndon_suffix_table: &[usize]) -> usize {
     let len = lyndon_table.len();
+    if len == 0 {
+        return 0;
+    }
 
     // count the number of factors for each conjugate
 
@@ -21,16 +24,11 @@ pub fn most_factors(lyndon_table: &[usize], lyndon_suffix_table: &[usize]) -> us
         counts_for_prefixes[i+1] = 1 + counts_for_prefixes[i + 1 - lyndon_suffix_table[i]];
     }
 
-    // print both counts for debugging
-    println!("Counts for suffixes: {:?}", counts_for_suffixes);
-    println!("Counts for prefixes: {:?}", counts_for_prefixes);
-
     // return the index with max sum of counts for suffixes and prefixes
     let mut max_factors = 0;
     let mut max_index = 0;
     for i in 1..len {
         let total_factors = counts_for_suffixes[i] + counts_for_prefixes[i];
-        println!("Total factors for conjugate starting at index {}: {}", i, total_factors);
         if total_factors > max_factors {
             max_factors = total_factors;
             max_index = i;
@@ -103,4 +101,35 @@ pub fn most_repeated_factors(s: &[u8], lyndon_table: &[usize], lyndon_suffix_tab
         }
     }
     max_index
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_most_factors_empty() {
+        let lyndon_table = vec![];
+        let lyndon_suffix_table = vec![];
+        let result = most_factors(&lyndon_table, &lyndon_suffix_table);
+        assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn test_most_factors_single_char() {
+        let lyndon_table = vec![1];
+        let lyndon_suffix_table = vec![1];
+        let result = most_factors(&lyndon_table, &lyndon_suffix_table);
+        assert_eq!(result, 0);
+    }
+
+    #[test]
+    fn test_most_factors_example() {
+        // abanan
+        let lyndon_table = vec![6, 1, 2, 1, 2, 1];
+        let lyndon_suffix_table = vec![1, 2, 1, 4, 1, 6];
+        let result = most_factors(&lyndon_table, &lyndon_suffix_table);
+        assert!(result == 1 || result == 3);
+    }
 }
