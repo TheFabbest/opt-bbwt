@@ -1,3 +1,5 @@
+// this implementation refers to https://github.com/hmmpiatkowski/bbwt
+
 use crate::{lyndon::duval, saca::circular_suffix_array};
 
 /// Computes the Bijective Burrows-Wheeler Transform (BBWT) of a string.
@@ -42,6 +44,61 @@ pub fn bbwt(text: &[u8]) -> Vec<u8> {
     transformed
 }
 
+/// Computes the inverse of the Bijective Burrows-Wheeler Transform (BBWT).
+pub fn unbbwt(in_str: &[u8]) -> Vec<u8> {
+    let len = in_str.len();
+    if len == 0 {
+        return Vec::new();
+    }
+    if len == 1 {
+        return vec![in_str[0]];
+    }
+
+    let alph_begin = in_str.iter().copied().min().unwrap_or(0);
+    let alph_size = in_str.iter().copied().max().unwrap_or(0) as usize + 1;
+    let mut chars_count = vec![0; alph_size];
+    let mut chars_before = vec![0; alph_size];
+    let mut chars_seen = vec![0; alph_size];
+    let mut std_perm = vec![0; len];
+
+    // lambda to map char to index in the alphabet
+    let char_to_index = |ch: u8| (ch - alph_begin) as usize;
+
+    for &ch in in_str {
+        chars_count[char_to_index(ch)] += 1;
+    }
+
+    for i in 1..alph_size {
+        chars_before[i] = chars_before[i - 1] + chars_count[i - 1];
+    }
+
+    for (i, &ch) in in_str.iter().enumerate() {
+        std_perm[i] = chars_before[char_to_index(ch)] + chars_seen[char_to_index(ch)];
+        chars_seen[char_to_index(ch)] += 1;
+    }
+
+    let mut out_pos = len - 1;
+    let mut out_str = vec![0; len];
+
+    for j in 0..len {
+        if std_perm[j] == std::usize::MAX {
+            continue;
+        }
+
+        let mut in_pos = j;
+
+        while std_perm[in_pos] != std::usize::MAX {
+            out_str[out_pos] = in_str[in_pos];
+            if out_pos == 0 { break; } // todo see if it's necessary
+            out_pos -= 1;
+            let t = in_pos;
+            in_pos = std_perm[in_pos];
+            std_perm[t] = std::usize::MAX;
+        }
+    }
+
+    out_str
+}
 
 #[cfg(test)]
 mod tests {
