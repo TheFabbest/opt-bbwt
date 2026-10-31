@@ -24,6 +24,68 @@ pub fn naive_optimal_bbwt(text: &[u8]) -> usize {
 
     min_runs_index
 }
+
+pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
+    let t0 = std::time::Instant::now();
+    let finder = crate::lyndon::shiloach::Shiloach;
+    let (start, period_length) = finder.find(text);
+    let s = &(0..period_length).map(|k| text[(start + k) % text.len()]).collect::<Vec<u8>>();
+
+    let factors = get_factor_with_conjugates_set(s);
+
+    // Extract directly into tuples. No .keys(), no hashset conversion!
+    let mut pairs: Vec<(&&[u8], &Vec<usize>)> = factors.iter().collect();
+    
+    // Sort keys in reverse lexicographic order.
+    pairs.sort_unstable_by(|(a, _), (b, _)| b.cmp(a));
+
+    // Unzip straight into our parallel arrays. 
+    let (sorted, factor_lists): (Vec<&&[u8]>, Vec<&Vec<usize>>) = pairs.into_iter().unzip();
+
+    // W = concatenation
+    let mut w: Vec<u8> = Vec::new();
+    let mut starts = Vec::with_capacity(sorted.len());
+    for &f in &sorted {  // Note the &f here since sorted is Vec<&&[u8]>
+        starts.push(w.len());
+        w.extend_from_slice(f);
+    }
+
+    let mut factor_of = vec![0usize; w.len()];
+    for (id, f) in sorted.iter().enumerate() {
+        for p in starts[id]..starts[id] + f.len() {
+            factor_of[p] = id;
+        }
+    }
+    println!("factors + W: {:?}", t0.elapsed());
+
+    let t1 = std::time::Instant::now();
+    let circular_sa = circular_suffix_array(&w);
+    println!("circular SA: {:?}", t1.elapsed());
+
+    let t2 = std::time::Instant::now();
+    let mut runs = vec![0usize; s.len()];
+    let mut last: Vec<Option<u8>> = vec![None; s.len()];
+    for &p in &circular_sa {
+        let id = factor_of[p];
+        let f = sorted[id];
+        let pred = f[(p - starts[id] + f.len() - 1) % f.len()];
+        
+        // 3. BLAST through a contiguous Vec slice in the hot loop!
+        // No hashing, no empty bucket skipping, just pure cache-friendly iteration.
+        for &c in factor_lists[id] {
+            if last[c] != Some(pred) {
+                runs[c] += 1;
+                last[c] = Some(pred);
+            }
+        }
+    }
+    println!("run counting: {:?}", t2.elapsed());
+
+    runs.iter().enumerate().min_by_key(|&(_, &r)| r).map(|(i, _)| i).unwrap()
+}
+
+
+// WIP
 pub fn online_bbwt_check(input_s: &[u8]) {
     let n = input_s.len();
     if n == 0 { return; }
@@ -117,66 +179,6 @@ pub fn online_bbwt_check(input_s: &[u8]) {
         }
     }
 }
-
-pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
-    let t0 = std::time::Instant::now();
-    let finder = crate::lyndon::shiloach::Shiloach;
-    let (start, period_length) = finder.find(text);
-    let s = &(0..period_length).map(|k| text[(start + k) % text.len()]).collect::<Vec<u8>>();
-
-    let factors = get_factor_with_conjugates_set(s);
-
-    // Extract directly into tuples. No .keys(), no hashset conversion!
-    let mut pairs: Vec<(&&[u8], &Vec<usize>)> = factors.iter().collect();
-    
-    // Sort keys in reverse lexicographic order.
-    pairs.sort_unstable_by(|(a, _), (b, _)| b.cmp(a));
-
-    // Unzip straight into our parallel arrays. 
-    let (sorted, factor_lists): (Vec<&&[u8]>, Vec<&Vec<usize>>) = pairs.into_iter().unzip();
-
-    // W = concatenation
-    let mut w: Vec<u8> = Vec::new();
-    let mut starts = Vec::with_capacity(sorted.len());
-    for &f in &sorted {  // Note the &f here since sorted is Vec<&&[u8]>
-        starts.push(w.len());
-        w.extend_from_slice(f);
-    }
-
-    let mut factor_of = vec![0usize; w.len()];
-    for (id, f) in sorted.iter().enumerate() {
-        for p in starts[id]..starts[id] + f.len() {
-            factor_of[p] = id;
-        }
-    }
-    println!("factors + W: {:?}", t0.elapsed());
-
-    let t1 = std::time::Instant::now();
-    let circular_sa = circular_suffix_array(&w);
-    println!("circular SA: {:?}", t1.elapsed());
-
-    let t2 = std::time::Instant::now();
-    let mut runs = vec![0usize; s.len()];
-    let mut last: Vec<Option<u8>> = vec![None; s.len()];
-    for &p in &circular_sa {
-        let id = factor_of[p];
-        let f = sorted[id];
-        let pred = f[(p - starts[id] + f.len() - 1) % f.len()];
-        
-        // 3. BLAST through a contiguous Vec slice in the hot loop!
-        // No hashing, no empty bucket skipping, just pure cache-friendly iteration.
-        for &c in factor_lists[id] {
-            if last[c] != Some(pred) {
-                runs[c] += 1;
-                last[c] = Some(pred);
-            }
-        }
-    }
-    println!("run counting: {:?}", t2.elapsed());
-
-    runs.iter().enumerate().min_by_key(|&(_, &r)| r).map(|(i, _)| i).unwrap()
-}
-
 
 #[cfg(test)]
 mod tests {

@@ -1,12 +1,9 @@
 use opt_bbwt::lyndon::{CanonicalRotationFinder, shiloach};
 
 fn main() {
-    //let s = b"bbaabca";
-    //lyndon::print_all_factors(s);
-
     // text is the first characters from the dna corpus
     let corpus_size = 3000;
-    let corpus = opt_bbwt::file::load_corpus("dna", corpus_size);
+    let corpus = opt_bbwt::file::load_corpus("sources", corpus_size);
     let text = corpus.expect("Failed to load corpus");
 
     let finder = shiloach::Shiloach;

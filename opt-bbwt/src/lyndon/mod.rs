@@ -6,7 +6,6 @@ pub mod lcp;
 
 pub use self::duval::duval;
 pub use self::shiloach::Shiloach;
-pub use self::conjugatesfactors::print_all_factors;
 pub use self::lyndontables::{lyndon_table, lyndon_suffix_table, compute_lyn_optimized};
 pub use self::lcp::lcp;
 

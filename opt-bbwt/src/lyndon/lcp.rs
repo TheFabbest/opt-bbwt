@@ -5,7 +5,6 @@ pub fn lcp(text: &[u8], sa: &[usize], rank: &[usize]) -> Vec<usize> {
     let mut lcp = vec![0; n];
     let mut h = 0;
 
-    // Step 2: Kasai's algorithm to compute LCP in O(n)
     for i in 0..n {
         if rank[i] > 0 {
             let j = sa[rank[i] - 1];

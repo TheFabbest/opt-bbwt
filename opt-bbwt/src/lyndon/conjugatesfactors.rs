@@ -1,6 +1,4 @@
 use crate::lyndon::{self, CanonicalRotationFinder, shiloach};
-use crate::optimalbbwt::{online_bbwt_check};
-use crate::string::rotate_string;
 use crate::{rank, saca};
 
 // takes a lambda and executes it on each factor of each conjugate of the string
@@ -123,75 +121,4 @@ pub fn get_factor_with_conjugates_set<'a>(
     }
 
     factors_with_counts
-}
-
-pub fn print_all_factors(s: &[u8]) {
-    let n = s.len();
-    if n == 0 {
-        println!("Empty string: nothing to factor.");
-        return;
-    }
-
-    let finder = shiloach::Shiloach;
-    let (start, period_length) = finder.find(s);
-
-    // first `period_length` characters of the least rotation, wrapping around the end
-    let aperiodic_least_rotation: Vec<u8> =
-        (0..period_length).map(|k| s[(start + k) % n]).collect();
-
-    println!("Aperiodic least rotation: {}", String::from_utf8_lossy(&aperiodic_least_rotation));
-    println!("Period length: {}", period_length);
-    println!(
-        "So each letter in the BBWT of the string is repeated {} times.",
-        n / period_length
-    );
-
-
-    // suffix array construction
-    let mut sa = vec![0; aperiodic_least_rotation.len()];
-
-    saca::optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa);
-
-    println!("Suffix Array: {:?}", sa);
-
-    // rank array
-    let rank = rank::sa_to_rank(&sa);
-    println!("Rank Array: {:?}", rank);
-
-    // lyndon table
-    let lyndon_table = lyndon::lyndontables::lyndon_table(&aperiodic_least_rotation, &rank);
-    println!("Lyndon Table: {:?}", lyndon_table);
-
-    // lyndon suffix table
-    let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(&aperiodic_least_rotation);
-    println!("Lyndon Suffix Table: {:?}", lyndon_suffix_table);
-
-    // heuristics
-    let most_number_of_factors_index = crate::heuristics::most_factors(&lyndon_table, &lyndon_suffix_table);
-    println!("Maximum number of factors: {}", most_number_of_factors_index);
-
-    let most_repeated_factors_index = crate::heuristics::most_repeated_factors(
-        &aperiodic_least_rotation,
-        &lyndon_table,
-        &lyndon_suffix_table,
-    );
-    println!("Index with most repeated factors: {}", most_repeated_factors_index);
-
-
-    // print BBWT for each heuristic and the original string
-    let bwt = crate::bbwt::bbwt(&aperiodic_least_rotation);
-    println!("BWT: {}", String::from_utf8_lossy(&bwt));
-
-    let bwt_most_factors = crate::bbwt::bbwt(&rotate_string(s, most_number_of_factors_index));
-    println!("BWT (most factors): {}", String::from_utf8_lossy(&bwt_most_factors));
-
-    let bwt_most_repeated_factors = crate::bbwt::bbwt(&rotate_string(s, most_repeated_factors_index));
-    println!("BWT (most repeated factors): {}", String::from_utf8_lossy(&bwt_most_repeated_factors));
-
-    // lcp
-    let lcp_array = lyndon::lcp::lcp(&aperiodic_least_rotation, &sa, &rank);
-    println!("LCP Array: {:?}", lcp_array);
-
-    online_bbwt_check(&aperiodic_least_rotation);
-
 }
