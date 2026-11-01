@@ -17,7 +17,7 @@ pub fn bbwt(text: &[u8]) -> Vec<u8> {
     let transformed: Vec<u8> = csa
         .into_iter()
         .map(|idx| {
-            // Find which Lyndon factor this index belongs to
+            // Find which Lyndon factor this index belongs to (TODO store them)
             let factor_start = factors
                 .iter()
                 .rev()
@@ -89,7 +89,7 @@ pub fn unbbwt(in_str: &[u8]) -> Vec<u8> {
 
         while std_perm[in_pos] != std::usize::MAX {
             out_str[out_pos] = in_str[in_pos];
-            if out_pos == 0 { break; } // todo see if it's necessary
+            if out_pos == 0 { break; }
             out_pos -= 1;
             let t = in_pos;
             in_pos = std_perm[in_pos];

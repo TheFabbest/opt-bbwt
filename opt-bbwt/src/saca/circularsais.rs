@@ -1,6 +1,6 @@
 // refers to https://github.com/hmmpiatkowski/bbwt
 
-use crate::lyndon::duval;
+use crate::{lyndon::{CanonicalRotationFinder, duval, lyndon_suffix_table, lyndon_table}, rank::sa_to_rank, saca::optimal_suffix_array_bytes, string::from_period_slice};
 
 // L and S type suffixes definition
 const L_TYPE: bool = false;
@@ -164,8 +164,11 @@ pub fn circular_suffix_array(text: &[u8]) -> Vec<usize> {
     }
     lb_fac.set(n, true);
 
+    let mut buckets = vec![0; alph_size + 1];
+    compute_buckets_structure(&in_str, &mut buckets, alph_size);
+
     let mut sa = vec![-1isize; n];
-    circular_suffix_array_inner(&in_str, &mut sa, n, &lb_fac, alph_size);
+    circular_suffix_array_inner(&in_str, &mut sa, n, &lb_fac, alph_size, &buckets);
 
     sa.into_iter().map(|x| x as usize).collect()
 }
@@ -176,11 +179,13 @@ fn circular_suffix_array_inner(
     len: usize,
     lb_fac: &BitVector,
     alph_size: usize,
+    buckets: &Vec<usize>,
 ) {
     if len == 0 {
         return;
     }
 
+    // compute types
     let mut suff_type = BitVector::new(len + 7);
     let mut spc_suff = BitVector::new(len + 1);
 
@@ -225,10 +230,9 @@ fn circular_suffix_array_inner(
 
     spc_suff.set(len, true);
 
-    let mut buckets = vec![0; alph_size + 1];
+    // presort
+    
     let mut tmp_buckets = vec![0; alph_size + 1];
-
-    compute_buckets_structure(in_str, &mut buckets, alph_size);
 
     for i in 0..len {
         sa[i] = -1;
@@ -340,7 +344,9 @@ fn circular_suffix_array_inner(
         }
 
         let mut rec_sa = vec![-1isize; num_lms_suff];
-        circular_suffix_array_inner(&red_str, &mut rec_sa, num_lms_suff, &red_factors, num_labels);
+        let mut new_buckets = vec![0; num_labels + 1];
+        compute_buckets_structure(&red_str, &mut new_buckets, num_labels);
+        circular_suffix_array_inner(&red_str, &mut rec_sa, num_lms_suff, &red_factors, num_labels, &new_buckets);
 
         out_pos = 0;
         for in_pos in 0..len {
@@ -374,4 +380,150 @@ fn circular_suffix_array_inner(
 
     tmp_buckets.copy_from_slice(&buckets);
     pre_sort_suffixes_s(in_str, sa, len, lb_fac, &suff_type, &mut tmp_buckets);
+}
+
+
+// returns the circular suffix array of the conjugate of the input string that yields the least number of runs in their BBWT
+pub fn optimal_csa(input: &[u8]) -> usize {
+    // find the least rotation of the input string
+    let finder = crate::lyndon::shiloach::Shiloach;
+    let (start, period_length) = finder.find(input);
+
+    let text = &from_period_slice(input, start, period_length);
+
+    // common computation for all conjugates
+
+    let min_c = *text.iter().min().unwrap() as usize;
+    let max_c = *text.iter().max().unwrap() as usize;
+    let alph_size = max_c - min_c + 1;
+
+    let mut buckets = vec![0; alph_size + 1];
+    let mut tmp_buckets = vec![0; alph_size + 1]; // can pre-allocate some stuff, but we need to pass these to the inner function
+
+    let in_str: Vec<usize> = text.iter().map(|&c| (c as usize) - min_c).collect();
+
+    compute_buckets_structure(&in_str, &mut buckets, alph_size);
+
+    let n = in_str.len();
+
+    // concatenated = text + text to handle all conjugates in one pass
+    let mut concatenated = Vec::with_capacity(2 * n);
+    concatenated.extend_from_slice(&in_str);
+    concatenated.extend_from_slice(&in_str);
+
+    // calculate circular suffix array for the first conjugate (the least rotation)
+    let sa = &mut vec![0; n];
+    optimal_suffix_array_bytes(text, sa);
+    let rank = &sa_to_rank(sa);
+
+    // lyndon table and lyndon suffix table for fast access to the factors of all conjugates
+    let lyndon_table = lyndon_table(text, rank);
+    let lyndon_suffix_table = lyndon_suffix_table(text);
+
+    // specific computation for each conjugate, initialize with data from the least rotation
+    let mut best_run_count = 0;
+    let mut best_conjugate = 0;
+    let mut csa = vec![0; n];
+
+    let mut prev_char = None;
+    for idx in sa {
+        // Preceding character within its Lyndon factor context
+        let prev_idx = if *idx == 0 {
+            n - 1
+        } else {
+            *idx - 1
+        };
+
+        let current = text[prev_idx];
+
+        if prev_char != Some(current) {
+            best_run_count += 1;
+            prev_char = Some(current);
+        }
+    }
+
+    for shift in 1..n {
+        let start = (n - shift) % n;
+        let rotated_string = concatenated[n - start.. n + n - start].to_vec();
+
+        
+        // Compute the Duval factorization of the rotated string
+        let mut factors: Vec<usize> = Vec::new();
+
+        let mut factor_start = shift;
+        while factor_start < n {
+            let factor_len = lyndon_table[factor_start];
+            factors.push(factor_start - shift);
+            factor_start += factor_len;
+        }
+        
+        let mut u_factor_lengths = Vec::new();
+        let mut end = shift;
+        while end > 0 {
+            let factor_len = lyndon_suffix_table[end - 1];
+            u_factor_lengths.push(factor_len);
+            end -= factor_len;
+        }
+
+        // The suffix table gave us lengths right-to-left. 
+        // Reverse them to match Duval's left-to-right expectation.
+        u_factor_lengths.reverse();
+
+        // The prefix is sitting at the end of the rotated string, starting at `n - shift`
+        let mut current_offset = n - shift;
+        for len in u_factor_lengths {
+            factors.push(current_offset);
+            current_offset += len;
+        }
+
+
+        let mut lb_fac = BitVector::new(n + 1);
+        for &f in &factors {
+            lb_fac.set(f, true);
+        }
+        lb_fac.set(n, true);
+
+        circular_suffix_array_inner(&rotated_string, &mut csa, n, &lb_fac, alph_size, &buckets);
+
+        // count runs
+        let mut run_count = 0;
+        let mut prev_char = None;
+        for &idx in &csa {
+            let factor_start = factors
+                .iter()
+                .rev()
+                .find(|&&start| start <= idx as usize)
+                .copied()
+                .unwrap_or(0);
+            let factor_len = if let Some(&next_start) = factors.iter().find(|&&s| s > factor_start) {
+                next_start - factor_start
+            } else {
+                n - factor_start
+            };
+
+            // Preceding character within its Lyndon factor context
+            let prev_idx = if idx as usize == factor_start {
+                factor_start + factor_len - 1
+            } else {
+                idx as usize - 1
+            };
+
+            let current = text[prev_idx];
+
+            if prev_char != Some(current) {
+                run_count += 1;
+                if run_count >= best_run_count {
+                    break; // early exit if we already exceed the best run count
+                }
+                prev_char = Some(current);
+            }
+        }
+
+        if run_count < best_run_count {
+            best_run_count = run_count;
+            best_conjugate = shift;
+        }
+    }
+
+    best_conjugate
 }

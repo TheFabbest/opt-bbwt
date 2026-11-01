@@ -85,16 +85,11 @@ pub fn most_repeated_factors(s: &[u8], lyndon_table: &[usize], lyndon_suffix_tab
         }
     }
 
-    // print both counts for debugging
-    println!("Counts for suffixes: {:?}", repetitions_in_suffixes);
-    println!("Counts for prefixes: {:?}", repetitions_in_prefixes);
-
     // return the index with max sum of counts for suffixes and prefixes
     let mut max_repeated_factors = 0;
     let mut max_index = 0;
     for i in 1..len {
         let total_repetitions = repetitions_in_suffixes[i] + repetitions_in_prefixes[i];
-        println!("Total repetitions for conjugate starting at index {}: {}", i, total_repetitions);
         if total_repetitions > max_repeated_factors {
             max_repeated_factors = total_repetitions;
             max_index = i;
@@ -131,5 +126,15 @@ mod tests {
         let lyndon_suffix_table = vec![1, 2, 1, 4, 1, 6];
         let result = most_factors(&lyndon_table, &lyndon_suffix_table);
         assert!(result == 1 || result == 3);
+    }
+
+    #[test]
+    fn test_most_repeated_factors_example() {
+        // abanan
+        let s = b"abanan";
+        let lyndon_table = vec![6, 1, 2, 1, 2, 1];
+        let lyndon_suffix_table = vec![1, 2, 1, 4, 1, 6];
+        let result = most_repeated_factors(s, &lyndon_table, &lyndon_suffix_table);
+        assert!(result == 1 || result == 2);
     }
 }
