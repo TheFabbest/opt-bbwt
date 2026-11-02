@@ -398,7 +398,7 @@ pub fn optimal_csa(input: &[u8]) -> usize {
     let alph_size = max_c - min_c + 1;
 
     let mut buckets = vec![0; alph_size + 1];
-    let mut tmp_buckets = vec![0; alph_size + 1]; // can pre-allocate some stuff, but we need to pass these to the inner function
+    //let mut tmp_buckets = vec![0; alph_size + 1]; // can pre-allocate some stuff, but we need to pass these to the inner function
 
     let in_str: Vec<usize> = text.iter().map(|&c| (c as usize) - min_c).collect();
 
