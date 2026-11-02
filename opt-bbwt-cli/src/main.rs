@@ -1,9 +1,9 @@
-use opt_bbwt::{bbwt::bbwt, lyndon::{CanonicalRotationFinder, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, saca::{optimal_suffix_array_bytes}, string::rotate_string};
+use opt_bbwt::{bbwt::bbwt, lyndon::{CanonicalRotationFinder, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, saca::{optimal_suffix_array_bytes, sais}, string::rotate_string};
 use opt_bbwt::heuristics::{most_factors, most_repeated_factors, most_repeated_factors_propotional};
 
 fn main() {
     // text is the first characters from the dna corpus
-    let corpus_size = 5000000;
+    let corpus_size = 50000;
     let corpus = opt_bbwt::file::load_corpus("dna", corpus_size);
     let text = corpus.expect("Failed to load corpus");
 
@@ -14,6 +14,11 @@ fn main() {
     let aperiodic_least_rotation: Vec<u8> =
         (0..period_length).map(|k| text[(start + k) % text.len()]).collect();
 
+    // confirm sais and optimalsa work the same
+    let mut sa1 = vec![0; aperiodic_least_rotation.len()];
+    optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa1);
+    let sa2 = opt_bbwt::saca::sais(&aperiodic_least_rotation);
+    assert_eq!(sa1, sa2, "sais and optimalsa do not produce the same suffix array for the aperiodic least rotation");
 
     // bench and compare
     // let start_time = std::time::Instant::now();
@@ -44,8 +49,7 @@ fn main() {
 
     // use heuristics
     let start_time = std::time::Instant::now();
-    let mut sa = vec![0; aperiodic_least_rotation.len()];
-    optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa);
+    let sa = sais(&aperiodic_least_rotation);
     let rank = sa_to_rank(&sa);
     let lyn = &lyndon_table(&aperiodic_least_rotation, &rank);
     let lyn_s = &lyndon_suffix_table(&aperiodic_least_rotation);
@@ -55,9 +59,8 @@ fn main() {
     println!("heuristic suggested: {}, that has {} runs. Time taken: {:?}", mrp, runs, heuristic_time);
 
     let start_time = std::time::Instant::now();
-    let mut sa = vec![0; aperiodic_least_rotation.len()];
-    optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa);
-    let rank: Vec<usize> = sa_to_rank(&sa);
+    let sa = sais(&aperiodic_least_rotation);
+    let rank = sa_to_rank(&sa);
     let lyn = &lyndon_table(&aperiodic_least_rotation, &rank);
     let lyn_s = &lyndon_suffix_table(&aperiodic_least_rotation);
     let mrp = most_factors(lyn, lyn_s);
@@ -66,8 +69,7 @@ fn main() {
     println!("heuristic suggested: {}, that has {} runs. Time taken: {:?}", mrp, runs, heuristic_time);
 
     let start_time = std::time::Instant::now();
-    let mut sa = vec![0; aperiodic_least_rotation.len()];
-    optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa);
+    let sa = sais(&aperiodic_least_rotation);
     let rank = sa_to_rank(&sa);
     let lyn = &lyndon_table(&aperiodic_least_rotation, &rank);
     let lyn_s = &lyndon_suffix_table(&aperiodic_least_rotation);
