@@ -1,4 +1,4 @@
-use crate::bbwt::{bbwt}; use crate::lyndon::conjugatesfactors::{get_factor_with_conjugates_set};
+use crate::bbwt::{bbwt}; use crate::lyndon::conjugatesfactors::{get_factor_with_conjugates_grouped};
 use crate::lyndon::{lyndon_suffix_table, lyndon_table, shiloach};
 use crate::naive::bbwt::bbwt_with_rank;
 use crate::rank::{sa_to_rank};
@@ -29,22 +29,14 @@ pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
     let (start, period_length) = shiloach(text);
     let s = &(0..period_length).map(|k| text[(start + k) % text.len()]).collect::<Vec<u8>>();
 
-    let factors = get_factor_with_conjugates_set(s);
-
-    // get pairs from factors hashmap    
-    let mut pairs: Vec<(&[u8], &Vec<usize>)> =
-        factors.iter().map(|(&key, value)| (key, value)).collect();
-    
-    // Sort keys in reverse lexicographic order.
-    pairs.sort_unstable_by(|(a, _), (b, _)| b.cmp(a));
-
-    // Unzip straight into our parallel arrays. 
-    let (sorted, factor_lists): (Vec<&[u8]>, Vec<&Vec<usize>>) = pairs.into_iter().unzip();
+    // Directly get the flattened, sorted arena
+    let grouped = get_factor_with_conjugates_grouped(s);
+    let sorted = grouped.sorted_factors;
 
     // W = concatenation
     let mut w: Vec<u8> = Vec::new();
     let mut starts = Vec::with_capacity(sorted.len());
-    for &f in &sorted {  // Note the &f here since sorted is Vec<&&[u8]>
+    for &f in &sorted {  
         starts.push(w.len());
         w.extend_from_slice(f);
     }
@@ -56,26 +48,38 @@ pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
         }
     }
 
-    // compute the circular suffix array of W
+    // Compute the circular suffix array of W
     let circular_sa = circular_suffix_array(&w);
     
-    // count runs
-    let mut runs = vec![0usize; s.len()];
-    let mut last: Vec<Option<u8>> = vec![None; s.len()];
+    // Use 256 as a sentinel for "None" to avoid Option<u8> memory overhead and branching
+    let mut run_state: Vec<(usize, u16)> = vec![(0, 256u16); s.len()];
+    
     for &p in &circular_sa {
         let id = factor_of[p];
         let f = sorted[id];
-        let pred = f[(p - starts[id] + f.len() - 1) % f.len()];
         
-        for &c in factor_lists[id] {
-            if last[c] != Some(pred) {
-                runs[c] += 1;
-                last[c] = Some(pred);
+        // REMOVED MODULO: Calculate the predecessor index safely
+        let offset = p - starts[id];
+        let pred = if offset == 0 {
+            f[f.len() - 1]
+        } else {
+            f[offset - 1]
+        } as u16;
+        
+        let idx_start = grouped.factor_starts[id];
+        let idx_len = grouped.factor_lengths[id];
+        let indices = &grouped.factor_indices[idx_start .. idx_start + idx_len];
+        
+        for &c in indices {
+            let state = &mut run_state[c];
+            if state.1 != pred {
+                state.0 += 1;
+                state.1 = pred;
             }
         }
     }
-    
-    runs.iter().enumerate().min_by_key(|&(_, &r)| r).map(|(i, _)| i).unwrap()
+
+    run_state.iter().enumerate().min_by_key(|&(_, state)| state.0).map(|(i, _)| i).unwrap()
 }
 
 pub fn optimal_bbwt_reuse(text: &[u8]) -> usize {

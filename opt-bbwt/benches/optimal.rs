@@ -6,7 +6,7 @@ fn optimal_bbwt_benchmarks(c: &mut Criterion) {
         .join("../corpora/dna");
     let input = opt_bbwt::file::load_file_prefix(
         corpus_path.to_str().expect("corpus path must be valid UTF-8"),
-        1_000,
+        1_500,
     )
     .expect("the benchmark corpus must be available");
     c.bench_function("naive_optimal_bbwt", |b| b.iter(|| naive_optimal_bbwt(black_box(&input))));

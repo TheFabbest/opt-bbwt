@@ -54,17 +54,28 @@ where
 
 }
 
-// Notice the lifetime 'a: we are now returning slices of the original string, 
-// completely eliminating heap allocations for the factors!
-pub fn get_factor_with_conjugates_set<'a>(
+
+// A completely flat structure designed for cache-friendly iteration
+pub struct GroupedFactors<'a> {
+    pub sorted_factors: Vec<&'a [u8]>,
+    pub factor_indices: Vec<usize>,       // Flat array of all conjugate indices
+    pub factor_starts: Vec<usize>,        // Start offset in factor_indices for each factor
+    pub factor_lengths: Vec<usize>,       // Number of indices for each factor
+}
+
+pub fn get_factor_with_conjugates_grouped<'a>(
     aperiodic_least_rotation: &'a [u8],
-) -> FxHashMap<&'a [u8], Vec<usize>> {
+) -> GroupedFactors<'a> {
     let n = aperiodic_least_rotation.len();
     if n == 0 {
-        return FxHashMap::default();
+        return GroupedFactors {
+            sorted_factors: Vec::new(),
+            factor_indices: Vec::new(),
+            factor_starts: Vec::new(),
+            factor_lengths: Vec::new(),
+        };
     }
 
-    // suffix array construction
     let mut sa = vec![0; n];
     saca::optimal_suffix_array_bytes(aperiodic_least_rotation, &mut sa);
 
@@ -72,10 +83,33 @@ pub fn get_factor_with_conjugates_set<'a>(
     let lyndon_table = lyndon::lyndontables::lyndon_table(aperiodic_least_rotation, &rank);
     let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(aperiodic_least_rotation);
 
-    // Keep borrowed factor slices and use a fast non-cryptographic hasher.
-    let mut factors_with_counts: FxHashMap<&'a [u8], Vec<usize>> = FxHashMap::default();
+    // Arena for linked list: stores (conjugate_index, next_node_index)
+    let mut arena: Vec<(usize, usize)> = Vec::with_capacity(n * 2);
+    // Map: factor -> (head_idx, tail_idx)
+    let mut factors_map: FxHashMap<&'a [u8], (usize, usize)> = FxHashMap::default();
 
-    factors_with_counts.insert(aperiodic_least_rotation, vec![0]);
+    let mut push_to_arena = |factor: &'a [u8], idx: usize| {
+        use std::collections::hash_map::Entry;
+        match factors_map.entry(factor) {
+            Entry::Occupied(mut occ) => {
+                let tail = &mut occ.get_mut().1;
+                // Prevent basic consecutive duplicates
+                if arena[*tail].0 != idx {
+                    let new_node = arena.len();
+                    arena.push((idx, usize::MAX));
+                    arena[*tail].1 = new_node;
+                    *tail = new_node; // Update tail in place
+                }
+            }
+            Entry::Vacant(vac) => {
+                let new_node = arena.len();
+                arena.push((idx, usize::MAX));
+                vac.insert((new_node, new_node));
+            }
+        }
+    };
+
+    push_to_arena(aperiodic_least_rotation, 0);
 
     // Process suffixes
     for i in (1..n).rev() {
@@ -83,14 +117,7 @@ pub fn get_factor_with_conjugates_set<'a>(
         while factor_start < n {
             let factor_length = lyndon_table[factor_start];
             let factor = &aperiodic_least_rotation[factor_start..factor_start + factor_length];
-            
-            // Entry API: 1 hash lookup instead of 3.
-            let list = factors_with_counts.entry(factor).or_insert_with(Vec::new);
-            
-            // Fast sequential deduplication
-            if list.last() != Some(&i) {
-                list.push(i);
-            }
+            push_to_arena(factor, i);
             factor_start += factor_length;
         }
     }
@@ -102,22 +129,54 @@ pub fn get_factor_with_conjugates_set<'a>(
             let my_factor_length = lyndon_suffix_table[my_factor_end - 1];
             let factor_start = my_factor_end - my_factor_length;
             let factor = &aperiodic_least_rotation[factor_start..my_factor_end];
-            
-            let list = factors_with_counts.entry(factor).or_insert_with(Vec::new);
-            if list.last() != Some(&i) {
-                list.push(i);
-            }
+            push_to_arena(factor, i);
             my_factor_end = factor_start;
         }
     }
 
-    // Because items were added from a descending loop and an ascending loop,
-    // we do one final fast dedup to ensure absolute uniqueness. 
-    // This is significantly faster than hashing every single insertion in a HashSet!
-    for list in factors_with_counts.values_mut() {
-        list.sort_unstable();
-        list.dedup();
+    // 1. Collect unique factors and sort them reverse-lexicographically
+    let mut sorted_factors: Vec<&'a [u8]> = factors_map.keys().copied().collect();
+    sorted_factors.sort_unstable_by(|a, b| b.cmp(a));
+
+    let mut factor_indices = Vec::with_capacity(arena.len());
+    let mut factor_starts = Vec::with_capacity(sorted_factors.len());
+    let mut factor_lengths = Vec::with_capacity(sorted_factors.len());
+
+    // 2. Flatten the linked lists into a single continuous array
+    for factor in &sorted_factors {
+        let (head, _) = factors_map[factor];
+        let start = factor_indices.len();
+        
+        let mut curr = head;
+        while curr != usize::MAX {
+            factor_indices.push(arena[curr].0);
+            curr = arena[curr].1;
+        }
+        
+        // Sort the newly added slice
+        factor_indices[start..].sort_unstable();
+        
+        // Stable in-place deduplication for the tail of the vector
+        let mut write_idx = start;
+        for read_idx in start..factor_indices.len() {
+            if write_idx == start || factor_indices[read_idx] != factor_indices[write_idx - 1] {
+                factor_indices[write_idx] = factor_indices[read_idx];
+                write_idx += 1;
+            }
+        }
+        
+        // Truncate back to the deduplicated length
+        factor_indices.truncate(write_idx);
+        let keep_len = write_idx - start;
+
+        factor_starts.push(start);
+        factor_lengths.push(keep_len);
     }
 
-    factors_with_counts
+    GroupedFactors {
+        sorted_factors,
+        factor_indices,
+        factor_starts,
+        factor_lengths,
+    }
 }
