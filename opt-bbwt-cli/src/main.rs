@@ -1,11 +1,6 @@
 use clap::Parser;
 use opt_bbwt::{
-    bbwt::bbwt,
-    heuristics::{most_factors, most_repeated_factors, most_repeated_factors_proportional},
-    lyndon::{lyndon_suffix_table, lyndon_table, shiloach},
-    rank::sa_to_rank,
-    saca::{optimal_suffix_array_bytes, sais},
-    string::rotate_string,
+    bbwt::bbwt, heuristics::{most_factors, most_repeated_factors, most_repeated_factors_proportional}, lyndon::{lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, saca::{optimal_suffix_array_bytes, sais}, string::rotate_string,
 };
 
 #[derive(Debug, Parser)]

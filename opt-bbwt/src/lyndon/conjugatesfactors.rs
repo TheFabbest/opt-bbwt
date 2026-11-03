@@ -23,19 +23,14 @@ where
 
     saca::optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa);
 
-    println!("Suffix Array: {:?}", sa);
-
     // rank array
     let rank = rank::sa_to_rank(&sa);
-    println!("Rank Array: {:?}", rank);
 
     // lyndon table
     let lyndon_table = lyndon::lyndontables::lyndon_table(&aperiodic_least_rotation, &rank);
-    println!("Lyndon Table: {:?}", lyndon_table);
 
     // lyndon suffix table
     let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(&aperiodic_least_rotation);
-    println!("Lyndon Suffix Table: {:?}", lyndon_suffix_table);
 
     for i in 1..period_length {
         let factor_start = i;
