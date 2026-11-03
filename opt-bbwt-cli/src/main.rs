@@ -1,100 +1,91 @@
-use opt_bbwt::{bbwt::bbwt, lyndon::{CanonicalRotationFinder, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, saca::{optimal_suffix_array_bytes, sais}, string::rotate_string};
-use opt_bbwt::heuristics::{most_factors, most_repeated_factors, most_repeated_factors_propotional};
+use clap::Parser;
+use opt_bbwt::{
+    bbwt::bbwt,
+    heuristics::{most_factors, most_repeated_factors, most_repeated_factors_proportional},
+    lyndon::{lyndon_suffix_table, lyndon_table, shiloach},
+    rank::sa_to_rank,
+    saca::{optimal_suffix_array_bytes, sais},
+    string::rotate_string,
+};
 
-fn main() {
-    // text is the first characters from the dna corpus
-    let corpus_size = 50000;
-    let corpus = opt_bbwt::file::load_corpus("dna", corpus_size);
-    let text = corpus.expect("Failed to load corpus");
+#[derive(Debug, Parser)]
+#[command(about = "Run BBWT and heuristic measurements on a corpus")]
+struct Args {
+    /// Name of the file under ./corpora.
+    #[arg(short, long, default_value = "dna")]
+    corpus: String,
 
-    let finder = shiloach::Shiloach;
-    let (start, period_length) = finder.find(&text);
+    /// Maximum number of bytes to read from the corpus.
+    #[arg(short, long, default_value_t = 50_000)]
+    length: usize,
+}
 
-    // first `period_length` characters of the least rotation, wrapping around the end
-    let aperiodic_least_rotation: Vec<u8> =
-        (0..period_length).map(|k| text[(start + k) % text.len()]).collect();
-
-    // confirm sais and optimalsa work the same
-    let mut sa1 = vec![0; aperiodic_least_rotation.len()];
-    optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa1);
-    let sa2 = opt_bbwt::saca::sais(&aperiodic_least_rotation);
-    assert_eq!(sa1, sa2, "sais and optimalsa do not produce the same suffix array for the aperiodic least rotation");
-
-    // bench and compare
-    // let start_time = std::time::Instant::now();
-    // let best_index = opt_bbwt::optimalbbwt::optimal_bbwt_through_w(&aperiodic_least_rotation);
-    // let optimal_time = start_time.elapsed();
-    // println!("Optimal BBWT index (through w): {}. Time taken: {:?}", best_index, optimal_time);
-    // let through_w_best_runs = bbwt(&rotate_string(&aperiodic_least_rotation, best_index)).windows(2).filter(|w| w[0] != w[1]).count();
-
-    // // let start_time = std::time::Instant::now();
-    // // let naive_result = opt_bbwt::optimalbbwt::naive_optimal_bbwt(aperiodic_least_rotation.as_slice());
-    // // let naive_time = start_time.elapsed();
-    // // println!("Naive optimal BBWT index: {}. Time taken: {:?}", naive_result, naive_time);
-    // // let naive_best_runs = bbwt(&rotate_string(&aperiodic_least_rotation, naive_result)).windows(2).filter(|w| w[0] != w[1]).count();
-
-    // // assert_eq!(naive_best_runs, through_w_best_runs, "Naive best runs: {}, Through W best runs: {}", naive_best_runs, through_w_best_runs);
-
-    // // let mut worst_runs = 0;
-    // // for i in 0..aperiodic_least_rotation.len() {
-    // //     let rotated = rotate_string(&aperiodic_least_rotation, i);
-    // //     let runs = bbwt(&rotated).windows(2).filter(|w| w[0] != w[1]).count();
-    // //     if runs > worst_runs {
-    // //         worst_runs = runs;
-    // //     }
-    // // }
-
-    // //println!("Worst case runs: {}", worst_runs);
-    // println!("Best number of runs: {}", through_w_best_runs);
-
-    // use heuristics
-    let start_time = std::time::Instant::now();
-    let sa = sais(&aperiodic_least_rotation);
-    let rank = sa_to_rank(&sa);
-    let lyn = &lyndon_table(&aperiodic_least_rotation, &rank);
-    let lyn_s = &lyndon_suffix_table(&aperiodic_least_rotation);
-    let mrp = most_repeated_factors(&aperiodic_least_rotation, lyn, lyn_s);
-    let heuristic_time = start_time.elapsed();
-    let runs = bbwt(&rotate_string(&aperiodic_least_rotation, mrp)).windows(2).filter(|w| w[0] != w[1]).count();
-    println!("heuristic suggested: {}, that has {} runs. Time taken: {:?}", mrp, runs, heuristic_time);
-
-    let start_time = std::time::Instant::now();
-    let sa = sais(&aperiodic_least_rotation);
-    let rank = sa_to_rank(&sa);
-    let lyn = &lyndon_table(&aperiodic_least_rotation, &rank);
-    let lyn_s = &lyndon_suffix_table(&aperiodic_least_rotation);
-    let mrp = most_factors(lyn, lyn_s);
-    let heuristic_time = start_time.elapsed();
-    let runs = bbwt(&rotate_string(&aperiodic_least_rotation, mrp)).windows(2).filter(|w| w[0] != w[1]).count();
-    println!("heuristic suggested: {}, that has {} runs. Time taken: {:?}", mrp, runs, heuristic_time);
-
-    let start_time = std::time::Instant::now();
-    let sa = sais(&aperiodic_least_rotation);
-    let rank = sa_to_rank(&sa);
-    let lyn = &lyndon_table(&aperiodic_least_rotation, &rank);
-    let lyn_s = &lyndon_suffix_table(&aperiodic_least_rotation);
-    let mrp = most_repeated_factors_propotional(&aperiodic_least_rotation, lyn, lyn_s);
-    let heuristic_time = start_time.elapsed();
-    let runs = bbwt(&rotate_string(&aperiodic_least_rotation, mrp)).windows(2).filter(|w| w[0] != w[1]).count();
-    println!("heuristic suggested: {}, that has {} runs. Time taken: {:?}", mrp, runs, heuristic_time);
-
-
-    // normal bbwt
-    if text.len() != aperiodic_least_rotation.len() {
-        println!("Warning: The text length is not equal to the aperiodic least rotation length. This may affect the following runs count.");
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = Args::parse();
+    let text = opt_bbwt::file::load_corpus(&args.corpus, args.length)?;
+    if text.is_empty() {
+        return Err("the selected corpus is empty".into());
     }
-    let start = std::time::Instant::now();
-    let bbwt = bbwt(&text);
-    let bbwt_time = start.elapsed();
-    println!("Normal BBWT time taken: {:?}", bbwt_time);
-    let runs = bbwt.windows(2).filter(|w| w[0] != w[1]).count();
-    println!("Normal BBWT runs: {}", runs);
 
-    // normal bwt
-    let start = std::time::Instant::now();
-    let bwt = opt_bbwt::bwt::bwt(&text);
-    let bwt_time = start.elapsed();
-    println!("Normal BWT time taken: {:?}", bwt_time);
-    let runs = bwt.windows(2).filter(|w| w[0] != w[1]).count();
-    println!("Normal BWT runs: {}", runs);
+    let (start, period_length) = shiloach(&text);
+    let aperiodic_least_rotation: Vec<u8> = (0..period_length)
+        .map(|k| text[(start + k) % text.len()])
+        .collect();
+    if text.len() != aperiodic_least_rotation.len() {
+        eprintln!("warning: canonical rotation length differs from corpus length");
+    }
+
+    let mut optimal_sa = vec![0; aperiodic_least_rotation.len()];
+    optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut optimal_sa);
+    assert_eq!(
+        optimal_sa,
+        sais(&aperiodic_least_rotation),
+        "suffix-array implementations disagree"
+    );
+
+    report_heuristic(
+        "most repeated factors",
+        &aperiodic_least_rotation,
+        |input, lyn, lyn_s| most_repeated_factors(input, lyn, lyn_s),
+    );
+    report_heuristic(
+        "most factors",
+        &aperiodic_least_rotation,
+        |_input, lyn, lyn_s| most_factors(lyn, lyn_s),
+    );
+    report_heuristic(
+        "proportional repeated factors",
+        &aperiodic_least_rotation,
+        |input, lyn, lyn_s| most_repeated_factors_proportional(input, lyn, lyn_s),
+    );
+
+    report_transform("BBWT", bbwt(&text));
+    report_transform("BWT", opt_bbwt::bwt::bwt(&text));
+    Ok(())
+}
+
+fn report_heuristic(name: &str, input: &[u8], choose: impl Fn(&[u8], &[usize], &[usize]) -> usize) {
+    let started = std::time::Instant::now();
+    let sa = sais(input);
+    let rank = sa_to_rank(&sa);
+    let lyn = lyndon_table(input, &rank);
+    let lyn_s = lyndon_suffix_table(input);
+    let rotation = choose(input, &lyn, &lyn_s);
+    let transformed = bbwt(&rotate_string(input, rotation));
+    let runs = transformed
+        .windows(2)
+        .filter(|window| window[0] != window[1])
+        .count();
+    println!(
+        "{name}: rotation={rotation}, runs={runs}, time={:?}",
+        started.elapsed()
+    );
+}
+
+fn report_transform(name: &str, transformed: Vec<u8>) {
+    let runs = transformed
+        .windows(2)
+        .filter(|window| window[0] != window[1])
+        .count();
+    println!("{name}: runs={runs}");
 }

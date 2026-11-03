@@ -1,16 +1,10 @@
 use std::cmp::Ordering;
-use super::CanonicalRotationFinder;
-
-pub struct Shiloach;
-
-impl CanonicalRotationFinder for Shiloach {
-    fn find<T: Ord>(&self, s: &[T]) -> (usize, usize) {
-        if s.is_empty() {
-            return (0, 0);
-        }
-        let (s, alpha, beta, d) = phase_one(s);
-        (phase_two(s, alpha, beta), d)
+pub fn shiloach<T: Ord>(s: &[T]) -> (usize, usize) {
+    if s.is_empty() {
+        return (0, 0);
     }
+    let (s, alpha, beta, d) = phase_one(s);
+    (phase_two(s, alpha, beta), d)
 }
 
 fn gcd(a: usize, b: usize) -> usize {
@@ -133,27 +127,24 @@ mod tests {
 
     #[test]
     fn test_shiloach_empty() {
-        let finder = Shiloach;
         let s: &[u8] = b"";
-        let (index, d) = finder.find(s);
+        let (index, d) = shiloach(s);
         assert_eq!(index, 0);
         assert_eq!(d, 0);
     }
 
     #[test]
     fn test_shiloach_single() {
-        let finder = Shiloach;
         let s: &[u8] = b"a";
-        let (index, d) = finder.find(s);
+        let (index, d) = shiloach(s);
         assert_eq!(index, 0);
         assert_eq!(d, 1);
     }
 
     #[test]
     fn test_shiloach_simple() {
-        let finder = Shiloach;
         let s: &[u8] = b"banana";
-        let (index, d) = finder.find(s);
+        let (index, d) = shiloach(s);
         assert_eq!(index, 5);
         assert_eq!(d, 6);
     }

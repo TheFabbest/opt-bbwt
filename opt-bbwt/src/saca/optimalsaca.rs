@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 
-// Special sentinel constants
+// Sentinels used internally to distinguish suffix-array states from byte values.
+// They are kept below usize::MAX so arithmetic can reserve MAX as an uninitialized marker.
 const BT: usize = usize::MAX;
 const BH: usize = usize::MAX - 1;
 const E: usize = usize::MAX - 2;

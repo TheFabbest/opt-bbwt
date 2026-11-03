@@ -1,10 +1,10 @@
-pub mod lyndon;
-pub mod string;
-pub mod saca;
-pub mod rank;
-pub mod heuristics;
-pub mod bwt;
 pub mod bbwt;
-pub mod optimalbbwt;
+pub mod bwt;
 pub mod file;
+pub mod heuristics;
+pub mod lyndon;
 pub mod naive;
+pub mod optimalbbwt;
+pub mod rank;
+pub mod saca;
+pub mod string;

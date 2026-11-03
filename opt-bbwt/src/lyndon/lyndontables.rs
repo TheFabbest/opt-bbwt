@@ -16,8 +16,8 @@ pub fn lyndon_table(s: &[u8], rank: &[usize]) -> Vec<usize> {
 
 /// Computes the Lyndon Table (Lyn) in O(n) utilizing the newRank shortcut 
 /// to minimize expensive cache misses on the rank array.
-pub fn compute_lyn_optimized(s: &[u8], rank: &[usize], lyn_s: &[usize]) -> Vec<usize> {
-    let n = s.len();
+pub fn compute_lyn_optimized(rank: &[usize], lyn_s: &[usize]) -> Vec<usize> {
+    let n = rank.len();
     // 2. Build the Lyn table backwards using the newRank shortcut
     let mut lyn = vec![1; n];
     for i in (0..n).rev() {
@@ -119,28 +119,25 @@ mod tests {
 
     #[test]
     fn test_lyndon_table_optimized_empty() {
-        let s = b"";
         let rank = vec![];
         let lyn_s = vec![];
         let expected: Vec<usize> = vec![];
-        assert_eq!(compute_lyn_optimized(s, &rank, &lyn_s), expected);
+        assert_eq!(compute_lyn_optimized(&rank, &lyn_s), expected);
     }
 
     #[test]
     fn test_lyndon_table_optimized_single_char() {
-        let s = b"a";
         let rank = vec![0];
         let lyn_s = vec![1];
         let expected = vec![1];
-        assert_eq!(compute_lyn_optimized(s, &rank, &lyn_s), expected);
+        assert_eq!(compute_lyn_optimized(&rank, &lyn_s), expected);
     }
 
     #[test]
     fn test_lyndon_table_optimized_simple() {
-        let s = b"banana";
         let rank = vec![3, 2, 5, 1, 4, 0];
         let lyn_s = vec![1, 2, 1, 2, 1, 1];
         let expected = vec![1, 2, 1, 2, 1, 1];
-        assert_eq!(compute_lyn_optimized(s, &rank, &lyn_s), expected);
+        assert_eq!(compute_lyn_optimized(&rank, &lyn_s), expected);
     }
 }

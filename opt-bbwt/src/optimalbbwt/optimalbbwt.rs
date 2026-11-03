@@ -1,19 +1,18 @@
 use crate::bbwt::{bbwt}; use crate::lyndon::conjugatesfactors::{get_factor_with_conjugates_set};
-use crate::lyndon::{CanonicalRotationFinder, lyndon_suffix_table, lyndon_table};
+use crate::lyndon::{lyndon_suffix_table, lyndon_table, shiloach};
 use crate::naive::bbwt::bbwt_with_rank;
 use crate::rank::{sa_to_rank};
 use crate::saca::{circular_suffix_array};
 
 pub fn naive_optimal_bbwt(text: &[u8]) -> usize {
-    let finder = crate::lyndon::shiloach::Shiloach;
-    let (start, n) = finder.find(text);
+    let (start, n) = shiloach(text);
 
     let s = (0..n).map(|k| text[(start + k) % text.len()]).collect::<Vec<u8>>();
 
     let mut min_runs_index = 0;
     let mut min_runs = usize::MAX;
     for i in 0..n {
-        let conjugate: Vec<u8> = s[i..].iter().chain(&s[..i]).cloned().collect();
+        let conjugate: Vec<u8> = s[i..].iter().chain(&s[..i]).copied().collect();
         let bbwt_result = bbwt(&conjugate);
         let runs = bbwt_result.windows(2).filter(|w| w[0] != w[1]).count() + 1; // count runs in BBWT
         if runs < min_runs {
@@ -27,20 +26,20 @@ pub fn naive_optimal_bbwt(text: &[u8]) -> usize {
 
 pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
     let t0 = std::time::Instant::now();
-    let finder = crate::lyndon::shiloach::Shiloach;
-    let (start, period_length) = finder.find(text);
+    let (start, period_length) = shiloach(text);
     let s = &(0..period_length).map(|k| text[(start + k) % text.len()]).collect::<Vec<u8>>();
 
     let factors = get_factor_with_conjugates_set(s);
 
     // Extract directly into tuples. No .keys(), no hashset conversion!
-    let mut pairs: Vec<(&&[u8], &Vec<usize>)> = factors.iter().collect();
+    let mut pairs: Vec<(&[u8], &Vec<usize>)> =
+        factors.iter().map(|(&key, value)| (key, value)).collect();
     
     // Sort keys in reverse lexicographic order.
     pairs.sort_unstable_by(|(a, _), (b, _)| b.cmp(a));
 
     // Unzip straight into our parallel arrays. 
-    let (sorted, factor_lists): (Vec<&&[u8]>, Vec<&Vec<usize>>) = pairs.into_iter().unzip();
+    let (sorted, factor_lists): (Vec<&[u8]>, Vec<&Vec<usize>>) = pairs.into_iter().unzip();
 
     // W = concatenation
     let mut w: Vec<u8> = Vec::new();
@@ -97,7 +96,7 @@ pub fn online_bbwt_check(input_s: &[u8]) {
     
     let s: Vec<u8> = input_s[least_rotation_idx..].iter()
         .chain(&input_s[..least_rotation_idx])
-        .cloned()
+        .copied()
         .collect();
     
     println!("Base Lyndon Conjugate: {}", String::from_utf8_lossy(&s));
@@ -123,8 +122,8 @@ pub fn online_bbwt_check(input_s: &[u8]) {
         let new_start = (n - shift - 1) % n;
         let removed_char = s[new_start]; 
 
-        let current_string: Vec<u8> = s[start..].iter().chain(&s[..start]).cloned().collect();
-        let rotated_string: Vec<u8> = s[new_start..].iter().chain(&s[..new_start]).cloned().collect();
+        let current_string: Vec<u8> = s[start..].iter().chain(&s[..start]).copied().collect();
+        let rotated_string: Vec<u8> = s[new_start..].iter().chain(&s[..new_start]).copied().collect();
         
         let (mut current_bbwt, bbwt_rank) = bbwt_with_rank(&current_string);
         let (new_bbwt, _) = bbwt_with_rank(&rotated_string);
@@ -204,8 +203,8 @@ mod tests {
             let naive_result = naive_optimal_bbwt(s);
 
             // get result-th rotation of s
-            let rotation: Vec<u8> = s[result..].iter().chain(&s[..result]).cloned().collect();
-            let naive_rotation: Vec<u8> = s[naive_result..].iter().chain(&s[..naive_result]).cloned().collect();
+            let rotation: Vec<u8> = s[result..].iter().chain(&s[..result]).copied().collect();
+            let naive_rotation: Vec<u8> = s[naive_result..].iter().chain(&s[..naive_result]).copied().collect();
 
             // calculate bbwt for both rotations
             let bbwt_result = bbwt(&rotation);

@@ -185,10 +185,23 @@ fn sais_core(s: &[usize], alphabet_size: usize) -> Vec<usize> {
 }
 
 pub fn sais(s: &[u8]) -> Vec<usize> {
-    if s.is_empty() {
-        return Vec::new();
-    }
+    let mut output = vec![0; s.len()];
+    sais_into(s, &mut output);
+    output
+}
 
+/// Computes the suffix array into a caller-provided buffer.
+///
+/// The buffer must have the same length as `s`.
+pub fn sais_into(s: &[u8], output: &mut [usize]) {
+    assert_eq!(
+        output.len(),
+        s.len(),
+        "suffix-array output buffer must match input length"
+    );
+    if s.is_empty() {
+        return;
+    }
     let mut max_val = 0;
     for &c in s {
         if (c as usize) > max_val {
@@ -206,5 +219,5 @@ pub fn sais(s: &[u8]) -> Vec<usize> {
     let full_sa = sais_core(&mapped, max_val + 2);
 
     // Omit the sentinel suffix from output
-    full_sa[1..].to_vec()
+    output.copy_from_slice(&full_sa[1..]);
 }

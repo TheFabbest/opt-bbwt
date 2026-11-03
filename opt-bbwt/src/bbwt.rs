@@ -4,54 +4,70 @@ use crate::{lyndon::duval, saca::circular_suffix_array};
 
 /// Computes the Bijective Burrows-Wheeler Transform (BBWT) of a string.
 pub fn bbwt(text: &[u8]) -> Vec<u8> {
+    let mut output = vec![0; text.len()];
+    bbwt_into(text, &mut output);
+    output
+}
+
+/// Computes the BBWT into a caller-provided buffer.
+///
+/// The buffer must have the same length as `text`.
+pub fn bbwt_into(text: &[u8], output: &mut [u8]) {
+    assert_eq!(
+        output.len(),
+        text.len(),
+        "BBWT output buffer must match input length"
+    );
     let n = text.len();
     if n == 0 {
-        return Vec::new();
+        return;
     }
-
     let factors = duval(text);
     let csa = circular_suffix_array(text);
 
-    // Map global indices back to their Lyndon factor boundaries to pick
-    // the preceding character in cyclic order.
-    let transformed: Vec<u8> = csa
-        .into_iter()
-        .map(|idx| {
-            // Find which Lyndon factor this index belongs to (TODO store them)
-            let factor_start = factors
-                .iter()
-                .rev()
-                .find(|&&start| start <= idx)
-                .copied()
-                .unwrap_or(0);
-            let factor_len = if let Some(&next_start) = factors.iter().find(|&&s| s > factor_start) {
-                next_start - factor_start
-            } else {
-                n - factor_start
-            };
-
-            // Preceding character within its Lyndon factor context
-            let prev_idx = if idx == factor_start {
-                factor_start + factor_len - 1
-            } else {
-                idx - 1
-            };
-
-            text[prev_idx]
-        })
-        .collect();
-
-    transformed
+    for (output_index, idx) in csa.into_iter().enumerate() {
+        let factor_start = factors
+            .iter()
+            .rev()
+            .find(|&&start| start <= idx)
+            .copied()
+            .unwrap_or(0);
+        let factor_len = factors
+            .iter()
+            .find(|&&start| start > factor_start)
+            .map_or(n - factor_start, |&next_start| next_start - factor_start);
+        let prev_idx = if idx == factor_start {
+            factor_start + factor_len - 1
+        } else {
+            idx - 1
+        };
+        output[output_index] = text[prev_idx];
+    }
 }
 
 /// Computes the inverse of the Bijective Burrows-Wheeler Transform (BBWT).
 pub fn unbbwt(in_str: &[u8]) -> Vec<u8> {
+    let mut output = vec![0; in_str.len()];
+    unbbwt_into(in_str, &mut output);
+    output
+}
+
+/// Computes the inverse BBWT into a caller-provided buffer.
+///
+/// The buffer must have the same length as `in_str`.
+pub fn unbbwt_into(in_str: &[u8], output: &mut [u8]) {
+    assert_eq!(
+        output.len(),
+        in_str.len(),
+        "inverse BBWT output buffer must match input length"
+    );
     let len = in_str.len();
     if len == 0 {
-        return Vec::new();
+        return;
     }
     if len == 1 {
-        return vec![in_str[0]];
+        output[0] = in_str[0];
+        return;
     }
 
     let alph_begin = in_str.iter().copied().min().unwrap_or(0);
@@ -78,8 +94,6 @@ pub fn unbbwt(in_str: &[u8]) -> Vec<u8> {
     }
 
     let mut out_pos = len - 1;
-    let mut out_str = vec![0; len];
-
     for j in 0..len {
         if std_perm[j] == std::usize::MAX {
             continue;
@@ -88,8 +102,10 @@ pub fn unbbwt(in_str: &[u8]) -> Vec<u8> {
         let mut in_pos = j;
 
         while std_perm[in_pos] != std::usize::MAX {
-            out_str[out_pos] = in_str[in_pos];
-            if out_pos == 0 { break; }
+            output[out_pos] = in_str[in_pos];
+            if out_pos == 0 {
+                break;
+            }
             out_pos -= 1;
             let t = in_pos;
             in_pos = std_perm[in_pos];
@@ -97,7 +113,6 @@ pub fn unbbwt(in_str: &[u8]) -> Vec<u8> {
         }
     }
 
-    out_str
 }
 
 #[cfg(test)]
@@ -119,16 +134,29 @@ mod tests {
     }
 
     #[test]
+    fn test_bbwt_into() {
+        let mut output = [0; 6];
+        bbwt_into(b"banana", &mut output);
+        assert_eq!(output.as_slice(), bbwt(b"banana").as_slice());
+    }
+
+    #[test]
     fn test_bbwt_vs_naive() {
         let test_strings = vec![
             b"banana".to_vec(),
             b"abracadabra".to_vec(),
             b"".to_vec(),
-            b"a".to_vec()];
+            b"a".to_vec(),
+        ];
         for s in test_strings {
             let transformed = bbwt(&s);
             let naive_transformed = crate::naive::bbwt::bbwt(&s);
-            assert_eq!(transformed, naive_transformed, "BBWT mismatch for input: {:?}", String::from_utf8_lossy(&s));
+            assert_eq!(
+                transformed,
+                naive_transformed,
+                "BBWT mismatch for input: {:?}",
+                String::from_utf8_lossy(&s)
+            );
         }
     }
 
@@ -144,6 +172,13 @@ mod tests {
         let s = b"a";
         let restored = unbbwt(s);
         assert_eq!(restored, b"a");
+    }
+
+    #[test]
+    fn test_unbbwt_into() {
+        let mut output = [0; 6];
+        unbbwt_into(&bbwt(b"banana"), &mut output);
+        assert_eq!(&output, b"banana");
     }
 
     #[test]

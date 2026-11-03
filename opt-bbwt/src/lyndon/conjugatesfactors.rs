@@ -1,5 +1,6 @@
-use crate::lyndon::{self, CanonicalRotationFinder, shiloach};
+use crate::lyndon::{self, shiloach};
 use crate::{rank, saca};
+use rustc_hash::FxHashMap;
 
 // takes a lambda and executes it on each factor of each conjugate of the string
 pub fn for_each_factor_of_each_conjugate<F>(s: &[u8], mut f: F)
@@ -11,8 +12,7 @@ where
         return;
     }
 
-    let finder = shiloach::Shiloach;
-    let (start, period_length) = finder.find(s);
+    let (start, period_length) = shiloach(s);
 
     // first `period_length` characters of the least rotation, wrapping around the end
     let aperiodic_least_rotation: Vec<u8> =
@@ -58,10 +58,10 @@ where
 // completely eliminating heap allocations for the factors!
 pub fn get_factor_with_conjugates_set<'a>(
     aperiodic_least_rotation: &'a [u8],
-) -> std::collections::HashMap<&'a [u8], Vec<usize>> {
+) -> FxHashMap<&'a [u8], Vec<usize>> {
     let n = aperiodic_least_rotation.len();
     if n == 0 {
-        return std::collections::HashMap::new();
+        return FxHashMap::default();
     }
 
     // suffix array construction
@@ -72,9 +72,8 @@ pub fn get_factor_with_conjugates_set<'a>(
     let lyndon_table = lyndon::lyndontables::lyndon_table(aperiodic_least_rotation, &rank);
     let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(aperiodic_least_rotation);
 
-    // Using HashMap<&[u8], Vec<usize>> instead of HashMap<Vec<u8>, HashSet<usize>>
-    let mut factors_with_counts: std::collections::HashMap<&'a [u8], Vec<usize>> =
-        std::collections::HashMap::new();
+    // Keep borrowed factor slices and use a fast non-cryptographic hasher.
+    let mut factors_with_counts: FxHashMap<&'a [u8], Vec<usize>> = FxHashMap::default();
 
     factors_with_counts.insert(aperiodic_least_rotation, vec![0]);
 

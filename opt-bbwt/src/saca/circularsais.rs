@@ -1,6 +1,6 @@
 // refers to https://github.com/hmmpiatkowski/bbwt
 
-use crate::{lyndon::{CanonicalRotationFinder, duval, lyndon_suffix_table, lyndon_table}, rank::sa_to_rank, saca::optimal_suffix_array_bytes, string::from_period_slice};
+use crate::{lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, saca::optimal_suffix_array_bytes, string::from_period_slice_into};
 
 // L and S type suffixes definition
 const L_TYPE: bool = false;
@@ -146,11 +146,24 @@ fn pre_sort_suffixes_s(
 }
 
 pub fn circular_suffix_array(text: &[u8]) -> Vec<usize> {
+    let mut output = vec![0; text.len()];
+    circular_suffix_array_into(text, &mut output);
+    output
+}
+
+/// Computes the circular suffix array into a caller-provided buffer.
+///
+/// The buffer must have the same length as `text`.
+pub fn circular_suffix_array_into(text: &[u8], output: &mut [usize]) {
+    assert_eq!(
+        output.len(),
+        text.len(),
+        "circular suffix-array output buffer must match input length"
+    );
     let n = text.len();
     if n == 0 {
-        return vec![];
+        return;
     }
-
     let min_c = *text.iter().min().unwrap() as usize;
     let max_c = *text.iter().max().unwrap() as usize;
     let alph_size = max_c - min_c + 1;
@@ -170,7 +183,9 @@ pub fn circular_suffix_array(text: &[u8]) -> Vec<usize> {
     let mut sa = vec![-1isize; n];
     circular_suffix_array_inner(&in_str, &mut sa, n, &lb_fac, alph_size, &buckets);
 
-    sa.into_iter().map(|x| x as usize).collect()
+    for (output_index, value) in sa.into_iter().enumerate() {
+        output[output_index] = value as usize;
+    }
 }
 
 fn circular_suffix_array_inner(
@@ -386,10 +401,11 @@ fn circular_suffix_array_inner(
 // returns the circular suffix array of the conjugate of the input string that yields the least number of runs in their BBWT
 pub fn optimal_csa(input: &[u8]) -> usize {
     // find the least rotation of the input string
-    let finder = crate::lyndon::shiloach::Shiloach;
-    let (start, period_length) = finder.find(input);
+    let (start, period_length) = shiloach(input);
 
-    let text = &from_period_slice(input, start, period_length);
+    let mut text_storage = vec![0; period_length];
+    from_period_slice_into(input, start, period_length, &mut text_storage);
+    let text = text_storage.as_slice();
 
     // common computation for all conjugates
 

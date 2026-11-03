@@ -20,7 +20,7 @@ pub fn circular_suffix_array_naive(s: &[u8]) -> Vec<usize> {
         };
         let factor = &s[factor_start..factor_start + factor_len];
         for i in 0..factor_len {
-            let rotation = factor[i..].iter().chain(factor[..i].iter()).cloned().collect::<Vec<u8>>();
+            let rotation = factor[i..].iter().chain(factor[..i].iter()).copied().collect::<Vec<u8>>();
             rotations.push((rotation, factor_start + i));
         }
     }

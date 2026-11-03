@@ -14,7 +14,7 @@ pub fn bbwt(text: &[u8]) -> Vec<u8> {
         };
         let factor = &text[factor_start..factor_start + factor_length];
         for i in 0..factor_length {
-            let rotation: Vec<u8> = factor.iter().cycle().skip(i).take(factor_length).cloned().collect();
+            let rotation: Vec<u8> = factor.iter().cycle().skip(i).take(factor_length).copied().collect();
             conjugates.push(rotation);
         }
     }
@@ -45,7 +45,7 @@ pub fn bbwt_with_rank(text: &[u8]) -> (Vec<u8>, Vec<usize>) {
         };
         let factor = &text[factor_start..factor_start + factor_length];
         for i in 0..factor_length {
-            let rotation: Vec<u8> = factor.iter().cycle().skip(i).take(factor_length).cloned().collect();
+            let rotation: Vec<u8> = factor.iter().cycle().skip(i).take(factor_length).copied().collect();
             conjugates_with_index.push((rotation, factor_start + i));
         }
     }
