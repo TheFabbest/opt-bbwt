@@ -15,3 +15,11 @@ criterion = "0.5"
 [[bench]]
 name = "transforms"
 harness = false
+
+[[bench]]
+name = "optimal"
+harness = false
+
+[[bench]]
+name = "heuristics"
+harness = false

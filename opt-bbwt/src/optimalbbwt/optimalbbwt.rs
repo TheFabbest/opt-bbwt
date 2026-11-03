@@ -2,6 +2,7 @@ use crate::bbwt::{bbwt}; use crate::lyndon::conjugatesfactors::{get_factor_with_
 use crate::lyndon::{lyndon_suffix_table, lyndon_table, shiloach};
 use crate::naive::bbwt::bbwt_with_rank;
 use crate::rank::{sa_to_rank};
+use crate::saca::circularsais::optimal_csa;
 use crate::saca::{circular_suffix_array};
 
 pub fn naive_optimal_bbwt(text: &[u8]) -> usize {
@@ -25,13 +26,12 @@ pub fn naive_optimal_bbwt(text: &[u8]) -> usize {
 }
 
 pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
-    let t0 = std::time::Instant::now();
     let (start, period_length) = shiloach(text);
     let s = &(0..period_length).map(|k| text[(start + k) % text.len()]).collect::<Vec<u8>>();
 
     let factors = get_factor_with_conjugates_set(s);
 
-    // Extract directly into tuples. No .keys(), no hashset conversion!
+    // get pairs from factors hashmap    
     let mut pairs: Vec<(&[u8], &Vec<usize>)> =
         factors.iter().map(|(&key, value)| (key, value)).collect();
     
@@ -55,13 +55,11 @@ pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
             factor_of[p] = id;
         }
     }
-    println!("factors + W: {:?}", t0.elapsed());
 
-    let t1 = std::time::Instant::now();
+    // compute the circular suffix array of W
     let circular_sa = circular_suffix_array(&w);
-    println!("circular SA: {:?}", t1.elapsed());
-
-    let t2 = std::time::Instant::now();
+    
+    // count runs
     let mut runs = vec![0usize; s.len()];
     let mut last: Vec<Option<u8>> = vec![None; s.len()];
     for &p in &circular_sa {
@@ -69,8 +67,6 @@ pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
         let f = sorted[id];
         let pred = f[(p - starts[id] + f.len() - 1) % f.len()];
         
-        // 3. BLAST through a contiguous Vec slice in the hot loop!
-        // No hashing, no empty bucket skipping, just pure cache-friendly iteration.
         for &c in factor_lists[id] {
             if last[c] != Some(pred) {
                 runs[c] += 1;
@@ -78,11 +74,13 @@ pub fn optimal_bbwt_through_w(text: &[u8]) -> usize {
             }
         }
     }
-    println!("run counting: {:?}", t2.elapsed());
-
+    
     runs.iter().enumerate().min_by_key(|&(_, &r)| r).map(|(i, _)| i).unwrap()
 }
 
+pub fn optimal_bbwt_reuse(text: &[u8]) -> usize {
+    optimal_csa(text)
+}
 
 // WIP
 pub fn online_bbwt_check(input_s: &[u8]) {

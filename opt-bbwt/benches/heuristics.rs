@@ -6,7 +6,7 @@ fn heuristic_benchmarks(c: &mut Criterion) {
         .join("../corpora/dna");
     let input = opt_bbwt::file::load_file_prefix(
         corpus_path.to_str().expect("corpus path must be valid UTF-8"),
-        50_000,
+        500_000,
     )
     .expect("the benchmark corpus must be available");
 
