@@ -35,3 +35,29 @@ pub fn circular_suffix_array_naive(s: &[u8]) -> Vec<usize> {
 
     sa
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_circular_suffix_array_naive_empty() {
+        let s = b"";
+        let expected: Vec<usize> = vec![];
+        assert_eq!(circular_suffix_array_naive(s), expected);
+    }
+
+    #[test]
+    fn test_circular_suffix_array_naive_single_char() {
+        let s = b"a";
+        let expected = vec![0];
+        assert_eq!(circular_suffix_array_naive(s), expected);
+    }
+
+    #[test]
+    fn test_circular_suffix_array_naive() {
+        let s = b"banana";
+        let expected = vec![5, 3, 1, 0, 4, 2];
+        assert_eq!(circular_suffix_array_naive(s), expected);
+    }
+}
