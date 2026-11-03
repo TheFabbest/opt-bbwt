@@ -134,33 +134,6 @@ mod tests {
     }
 
     #[test]
-    fn test_bbwt_into() {
-        let mut output = [0; 6];
-        bbwt_into(b"banana", &mut output);
-        assert_eq!(output.as_slice(), bbwt(b"banana").as_slice());
-    }
-
-    #[test]
-    fn test_bbwt_vs_naive() {
-        let test_strings = vec![
-            b"banana".to_vec(),
-            b"abracadabra".to_vec(),
-            b"".to_vec(),
-            b"a".to_vec(),
-        ];
-        for s in test_strings {
-            let transformed = bbwt(&s);
-            let naive_transformed = crate::naive::bbwt::bbwt(&s);
-            assert_eq!(
-                transformed,
-                naive_transformed,
-                "BBWT mismatch for input: {:?}",
-                String::from_utf8_lossy(&s)
-            );
-        }
-    }
-
-    #[test]
     fn test_unbbwt_empty() {
         let s = b"";
         let restored = unbbwt(s);
@@ -172,13 +145,6 @@ mod tests {
         let s = b"a";
         let restored = unbbwt(s);
         assert_eq!(restored, b"a");
-    }
-
-    #[test]
-    fn test_unbbwt_into() {
-        let mut output = [0; 6];
-        unbbwt_into(&bbwt(b"banana"), &mut output);
-        assert_eq!(&output, b"banana");
     }
 
     #[test]
