@@ -460,7 +460,7 @@ pub fn optimal_csa(input: &[u8]) -> usize {
 
     for shift in 1..n {
         let start = (n - shift) % n;
-        let rotated_string = concatenated[n - start.. n + n - start].to_vec();
+        let rotated_string = &concatenated[n - start.. n + n - start].to_vec();
 
         
         // Compute the Duval factorization of the rotated string
@@ -524,12 +524,13 @@ pub fn optimal_csa(input: &[u8]) -> usize {
                 idx as usize - 1
             };
 
-            let current = text[prev_idx];
+            // FIX: Index into the correctly rotated string
+            let current = rotated_string[prev_idx];
 
             if prev_char != Some(current) {
                 run_count += 1;
                 if run_count >= best_run_count {
-                    break; // early exit if we already exceed the best run count
+                    break; 
                 }
                 prev_char = Some(current);
             }
