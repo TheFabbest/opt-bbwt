@@ -1,5 +1,5 @@
 use opt_bbwt::{
-    bbwt::{bbwt, bbwt_into, unbbwt, unbbwt_into}, bwt::{bwt, bwt_into}, file::generate_random_binary_string, naive, optimalbbwt::{naive_optimal_bbwt, online_bbwt_check, optimal_bbwt_reuse, optimal_bbwt_through_w}, saca::{
+    bbwt::{bbwt, bbwt_into, unbbwt, unbbwt_into}, bwt::{bwt, bwt_into}, naive, optimalbbwt::{naive_optimal_bbwt, online_bbwt_check, optimal_bbwt_reuse, optimal_bbwt_through_w}, saca::{
         circular_suffix_array, circular_suffix_array_into, optimal_suffix_array_bytes, sais,
         sais_into,
     },
@@ -71,7 +71,7 @@ fn optimal_bbwt_matches_quadratic_reference() {
         let naive_rotation = [input[naive_result..].as_ref(), &input[..naive_result]].concat();
         let runs = |text: &[u8]| bbwt(text).windows(2).filter(|w| w[0] != w[1]).count() + 1;
         assert_eq!(runs(&rotation_through_w), runs(&naive_rotation));
-        //assert_eq!(runs(&rotation_reuse), runs(&naive_rotation));
+        assert_eq!(runs(&rotation_reuse), runs(&naive_rotation));
         assert_eq!(runs(&rotation_online), runs(&naive_rotation));
     }
 }
