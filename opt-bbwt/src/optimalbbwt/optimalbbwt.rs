@@ -731,7 +731,15 @@ pub fn optimal_bbwt_chain(text: &[u8], prune: bool) -> usize {
 pub fn online_bbwt_check(input_s: &[u8]) -> usize {
     let (start, period) = shiloach(input_s);
     let s: Vec<u8> = (0..period).map(|k| input_s[(start + k) % input_s.len()]).collect();
-    let verify = s.len() <= 400 && false;
+    let verify = s.len() <= 400;
     let (shift, runs, st) = chain_min_runs(&s, true, verify);
+    println!(
+        "n={} verified={} best shift={} runs={} | per step: risky {:.1} dead {:.1} ins {:.1} deleted {:.1} reinserted {:.1} cmps {:.0} | deferred {} of {} steps, rebuilds {}",
+        s.len(), verify, shift, runs,
+        st.risky as f64 / st.steps.max(1) as f64, st.dead as f64 / st.steps.max(1) as f64,
+        st.ins as f64 / st.steps.max(1) as f64, st.phys_del as f64 / st.steps.max(1) as f64,
+        st.phys_ins as f64 / st.steps.max(1) as f64, st.cmp_calls as f64 / st.steps.max(1) as f64,
+        st.deferred_steps, st.steps, st.rebuilds
+    );
     shift
 }
