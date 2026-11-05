@@ -1,9 +1,6 @@
-use opt_bbwt::{
-    bbwt::{bbwt, bbwt_into, unbbwt, unbbwt_into}, bwt::{bwt, bwt_into}, naive, optimalbbwt::{naive_optimal_bbwt, online_bbwt_check, optimal_bbwt_reuse, optimal_bbwt_through_w}, saca::{
-        circular_suffix_array, circular_suffix_array_into, optimal_suffix_array_bytes, sais,
-        sais_into,
-    },
-};
+use opt_bbwt::{bbwt::{bbwt, bbwt_into, unbbwt, unbbwt_into}, bwt::{bwt, bwt_into}, naive::{self, naive_optimal_bbwt}, optimalbbwt::{online_bbwt_check, optimal_bbwt_global_sort, optimal_bbwt_reuse}, saca::{circular_suffix_array, circular_suffix_array_into, optimal_suffix_array_bytes, sais, sais_into}};
+
+
 
 #[test]
 fn suffix_array_implementations_agree() {
@@ -20,7 +17,7 @@ fn suffix_array_implementations_agree() {
 #[test]
 fn transform_implementations_agree() {
     for input in [b"banana".as_slice(), b"abracadabra", b""] {
-        assert_eq!(bbwt(input), naive::bbwt::bbwt(input));
+        assert_eq!(bbwt(input), naive::bbwt::naive_bbwt(input));
 
         let mut bbwt_output = vec![0; input.len()];
         bbwt_into(input, &mut bbwt_output);
@@ -38,7 +35,7 @@ fn circular_suffix_array_implementations_agree() {
         let mut output = vec![0; input.len()];
         circular_suffix_array_into(input, &mut output);
         assert_eq!(circular_suffix_array(input), output);
-        assert_eq!(output, naive::csa::circular_suffix_array_naive(input));
+        assert_eq!(output, naive::csa::naive_circular_suffix_array(input));
     }
 }
 
@@ -60,7 +57,7 @@ fn optimal_bbwt_matches_quadratic_reference() {
         b"banana",
         b"mississippi",
     ] {
-        let result_through_w = optimal_bbwt_through_w(input);
+        let result_through_w = optimal_bbwt_global_sort(input);
         let result_reuse = optimal_bbwt_reuse(input);
         let result_online = online_bbwt_check(input);
         let naive_result = naive_optimal_bbwt(input);
