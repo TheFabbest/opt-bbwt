@@ -1,6 +1,6 @@
 use clap::Parser;
 use opt_bbwt::{
-    bbwt::bbwt, heuristics::{most_factors, most_repeated_factors, most_repeated_factors_proportional}, lyndon::{lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, saca::{optimal_suffix_array_bytes, sais}, string::rotate_string,
+    bbwt::bbwt, heuristics::{most_factors, most_repeated_factors, most_repeated_factors_proportional}, lyndon::{lyndon_suffix_table, lyndon_table, shiloach}, optimalbbwt::optimalbbwt, rank::sa_to_rank, saca::{optimal_suffix_array_bytes, sais}, string::rotate_string,
 };
 
 #[derive(Debug, Parser)]
@@ -26,37 +26,115 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let aperiodic_least_rotation: Vec<u8> = (0..period_length)
         .map(|k| text[(start + k) % text.len()])
         .collect();
-    if text.len() != aperiodic_least_rotation.len() {
-        eprintln!("warning: canonical rotation length differs from corpus length");
+
+    // benchmark online
+    let start = std::time::Instant::now();
+    let rotation_online = optimalbbwt::optimal_bbwt_chain(&aperiodic_least_rotation, true);
+    let online_duration = start.elapsed();
+    println!("optimal_bbwt_online: rotation={rotation_online}, time={online_duration:?}");
+    return Ok(());
+    
+    // compare optimal bbwt implementations
+    let start = std::time::Instant::now();
+    let naive_result = optimalbbwt::naive_optimal_bbwt(&aperiodic_least_rotation);
+    let naive_duration = start.elapsed();
+    let rotation_through_w = optimalbbwt::optimal_bbwt_through_w(&aperiodic_least_rotation);
+    let through_w_duration = start.elapsed() - naive_duration;
+    let rotation_reuse = optimalbbwt::optimal_bbwt_reuse(&aperiodic_least_rotation);
+    let reuse_duration = start.elapsed() - naive_duration - through_w_duration;
+    let rotation_online = optimalbbwt::optimal_bbwt_chain(&aperiodic_least_rotation, true);
+    let online_duration = start.elapsed() - naive_duration - through_w_duration - reuse_duration;
+
+    println!("naive_optimal_bbwt: rotation={naive_result}, time={naive_duration:?}");
+    println!("optimal_bbwt_through_w: rotation={rotation_through_w}, time={through_w_duration:?}");
+    println!("optimal_bbwt_reuse: rotation={rotation_reuse}, time={reuse_duration:?}");
+    println!("optimal_bbwt_online: rotation={rotation_online}, time={online_duration:?}");
+
+    // rotate
+    let naive_rotation = [aperiodic_least_rotation[naive_result..].as_ref(), &aperiodic_least_rotation[..naive_result]].concat();
+    let rotation_through_w = [aperiodic_least_rotation[rotation_through_w..].as_ref(), &aperiodic_least_rotation[..rotation_through_w]].concat();
+    let rotation_reuse = [aperiodic_least_rotation[rotation_reuse..].as_ref(), &aperiodic_least_rotation[..rotation_reuse]].concat();
+    let rotation_online = [aperiodic_least_rotation[rotation_online..].as_ref(), &aperiodic_least_rotation[..rotation_online]].concat();
+    
+    // count runs
+    let runs = |text: &[u8]| bbwt(text).windows(2).filter(|w| w[0] != w[1]).count() + 1;
+    let naive_runs = runs(&naive_rotation);
+    assert_eq!(runs(&rotation_through_w), naive_runs);
+    assert_eq!(runs(&rotation_online), naive_runs);
+    assert_eq!(runs(&rotation_reuse), naive_runs);
+
+return Ok(());
+
+    let text_size = 7;
+
+    // for all strings on alphabet of size text_size and length of text_size, check that the optimal bbwt implementations agree
+    let mut text = vec![0; text_size];
+    for i in 0..((text_size as i32).pow(text_size as u32)) {
+        let mut n = i;
+        for j in 0..text_size {
+            text[j] = (n % text_size as i32) as u8;
+            n /= text_size as i32;
+        }
+        if i % 10000 == 0 {
+            println!("checking string {text:?} ({i})");
+        }
+        let (start, period_length) = shiloach(&text);
+        let aperiodic_least_rotation: Vec<u8> = (0..period_length)
+            .map(|k| text[(start + k) % text.len()])
+            .collect();
+        
+        
+
+        // compare optimal bbwt implementations
+        let naive_result = optimalbbwt::naive_optimal_bbwt(&aperiodic_least_rotation);
+        let rotation_through_w = optimalbbwt::optimal_bbwt_through_w(&aperiodic_least_rotation);
+        let rotation_reuse = optimalbbwt::optimal_bbwt_reuse(&aperiodic_least_rotation);
+        let rotation_online = optimalbbwt::online_bbwt_check(&aperiodic_least_rotation);
+
+        // rotate
+        let naive_rotation = [aperiodic_least_rotation[naive_result..].as_ref(), &aperiodic_least_rotation[..naive_result]].concat();
+        let rotation_through_w = [aperiodic_least_rotation[rotation_through_w..].as_ref(), &aperiodic_least_rotation[..rotation_through_w]].concat();
+        let rotation_reuse = [aperiodic_least_rotation[rotation_reuse..].as_ref(), &aperiodic_least_rotation[..rotation_reuse]].concat();
+        let rotation_online = [aperiodic_least_rotation[rotation_online..].as_ref(), &aperiodic_least_rotation[..rotation_online]].concat();
+
+        // count runs
+        let runs = |text: &[u8]| bbwt(text).windows(2).filter(|w| w[0] != w[1]).count() + 1;
+        let naive_runs = runs(&naive_rotation);
+        assert_eq!(runs(&rotation_through_w), naive_runs);
+        assert_eq!(runs(&rotation_online), naive_runs);
+        assert_eq!(runs(&rotation_reuse), naive_runs);
+
     }
 
-    let mut optimal_sa = vec![0; aperiodic_least_rotation.len()];
-    optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut optimal_sa);
-    assert_eq!(
-        optimal_sa,
-        sais(&aperiodic_least_rotation),
-        "suffix-array implementations disagree"
-    );
+    return Ok(());
 
-    report_heuristic(
-        "most repeated factors",
-        &aperiodic_least_rotation,
-        |input, lyn, lyn_s| most_repeated_factors(input, lyn, lyn_s),
-    );
-    report_heuristic(
-        "most factors",
-        &aperiodic_least_rotation,
-        |_input, lyn, lyn_s| most_factors(lyn, lyn_s),
-    );
-    report_heuristic(
-        "proportional repeated factors",
-        &aperiodic_least_rotation,
-        |input, lyn, lyn_s| most_repeated_factors_proportional(input, lyn, lyn_s),
-    );
+    // let mut optimal_sa = vec![0; aperiodic_least_rotation.len()];
+    // optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut optimal_sa);
+    // assert_eq!(
+    //     optimal_sa,
+    //     sais(&aperiodic_least_rotation),
+    //     "suffix-array implementations disagree"
+    // );
 
-    report_transform("BBWT", bbwt(&text));
-    report_transform("BWT", opt_bbwt::bwt::bwt(&text));
-    Ok(())
+    // report_heuristic(
+    //     "most repeated factors",
+    //     &aperiodic_least_rotation,
+    //     |input, lyn, lyn_s| most_repeated_factors(input, lyn, lyn_s),
+    // );
+    // report_heuristic(
+    //     "most factors",
+    //     &aperiodic_least_rotation,
+    //     |_input, lyn, lyn_s| most_factors(lyn, lyn_s),
+    // );
+    // report_heuristic(
+    //     "proportional repeated factors",
+    //     &aperiodic_least_rotation,
+    //     |input, lyn, lyn_s| most_repeated_factors_proportional(input, lyn, lyn_s),
+    // );
+
+    // report_transform("BBWT", bbwt(&text));
+    // report_transform("BWT", opt_bbwt::bwt::bwt(&text));
+    // Ok(())
 }
 
 fn report_heuristic(name: &str, input: &[u8], choose: impl Fn(&[u8], &[usize], &[usize]) -> usize) {
