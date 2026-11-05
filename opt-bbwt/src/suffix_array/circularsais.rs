@@ -1,6 +1,6 @@
 // refers to https://github.com/hmmpiatkowski/bbwt
 
-use crate::{lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, saca::optimal_suffix_array_bytes, string::from_period_slice_into};
+use crate::{lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, suffix_array::suffix_array, string::from_period_slice_into};
 
 // L and S type suffixes definition
 const L_TYPE: bool = false;
@@ -428,8 +428,7 @@ pub fn optimal_csa(input: &[u8]) -> usize {
     concatenated.extend_from_slice(&in_str);
 
     // calculate circular suffix array for the first conjugate (the least rotation)
-    let sa = &mut vec![0; n];
-    optimal_suffix_array_bytes(text, sa);
+    let sa = &suffix_array(text);
     let rank = &sa_to_rank(sa);
 
     // lyndon table and lyndon suffix table for fast access to the factors of all conjugates

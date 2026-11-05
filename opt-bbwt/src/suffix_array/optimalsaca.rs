@@ -14,8 +14,7 @@ const MSB: usize = 1usize << (usize::BITS - 1);
 
 // ----- Auxiliary Functions -----
 
-pub fn chars_to_usize_array(input_chars: &[u8]) -> Vec<usize> {
-    // .collect() on a slice iterator automatically pre-allocates exact capacity
+fn chars_to_usize_array(input_chars: &[u8]) -> Vec<usize> {
     input_chars.iter().map(|&c| c as usize).collect()
 }
 
@@ -823,9 +822,7 @@ fn induced_sorting(input: &[usize], sa: &mut [usize], using_l_type: bool) {
     }
 }
 
-// ----- Main Entry Points -----
-
-pub fn optimal_suffix_array_first(
+fn optimal_suffix_array_first(
     input: &[usize],
     sa: &mut [usize],
     prev_n_s: &mut usize,
@@ -867,7 +864,7 @@ pub fn optimal_suffix_array_first(
     true
 }
 
-pub fn optimal_suffix_array_second(input: &[usize], sa: &mut [usize]) {
+fn optimal_suffix_array_second(input: &[usize], sa: &mut [usize]) {
     let length = sa.len();
     let mut n_s = count_s_type(input);
 
@@ -983,9 +980,15 @@ unsafe fn optimal_suffix_array(
 }
 
 /// Convenience wrapper for byte slice or string slice inputs
-pub fn optimal_suffix_array_bytes(input_chars: &[u8], sa: &mut [usize]) {
+pub fn optimal_suffix_array_bytes_into(input_chars: &[u8], sa: &mut [usize]) {
     let mut input = chars_to_usize_array(input_chars);
     unsafe { 
         optimal_suffix_array(input.as_mut_ptr(), sa.as_mut_ptr(), input.len()) 
     };
+}
+
+pub fn optimal_suffix_array_bytes(input_chars: &[u8]) -> Vec<usize> {
+    let mut sa = vec![0; input_chars.len()];
+    optimal_suffix_array_bytes_into(input_chars, &mut sa);
+    sa
 }

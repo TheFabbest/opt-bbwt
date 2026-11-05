@@ -1,6 +1,6 @@
 use crate::lyndon::conjugatesfactors::get_factor_with_conjugates_grouped;
 use crate::lyndon::shiloach;
-use crate::saca::circularsais::circular_suffix_array;
+use crate::suffix_array::circularsais::circular_suffix_array;
 
 pub fn optimal_bbwt_global_sort(text: &[u8]) -> usize {
     let (start, period_length) = shiloach(text);

@@ -1,4 +1,4 @@
-use crate::saca::optimal_suffix_array_bytes;
+use crate::suffix_array::suffix_array;
 
 pub fn bwt(s: &[u8]) -> Vec<u8> {
     let mut output = vec![0; s.len()];
@@ -15,8 +15,7 @@ pub fn bwt_into(s: &[u8], output: &mut [u8]) {
         s.len(),
         "BWT output buffer must match input length"
     );
-    let mut sa = vec![0; s.len()];
-    optimal_suffix_array_bytes(s, &mut sa);
+    let sa = suffix_array(s);
     for (output_index, &i) in sa.iter().enumerate() {
         let prev_index = if i == 0 { s.len() - 1 } else { i - 1 };
         output[output_index] = s[prev_index];
@@ -56,8 +55,7 @@ mod tests {
 
     #[test]
     fn test_bwt_into() {
-        let mut output = [0; 6];
-        bwt_into(b"banana", &mut output);
+        let output = bwt(b"banana");
         assert_eq!(&output, b"nnbaaa");
     }
 }

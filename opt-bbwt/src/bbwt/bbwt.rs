@@ -1,6 +1,6 @@
 // this implementation refers to https://github.com/hmmpiatkowski/bbwt
 
-use crate::{lyndon::duval, saca::circular_suffix_array};
+use crate::{lyndon::duval, suffix_array::circular_suffix_array};
 
 /// Computes the Bijective Burrows-Wheeler Transform (BBWT) of a string.
 pub fn bbwt(text: &[u8]) -> Vec<u8> {

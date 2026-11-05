@@ -1,9 +1,17 @@
-use crate::{lyndon::duval, naive::omegaorder::omega_cmp};
+use crate::{lyndon::duval};
+
+fn omega_cmp(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
+    // Compare their infinite expansions a.iter().cycle() and b.iter().cycle()
+    let len_lcm = a.len() * b.len(); // or compare up to a.len() * b.len() steps
+    let inf_a = a.iter().cycle().take(len_lcm);
+    let inf_b = b.iter().cycle().take(len_lcm);
+    inf_a.cmp(inf_b)
+}
 
 // circular suffix array
 pub fn naive_circular_suffix_array(s: &[u8]) -> Vec<usize> {
     
-    let mut sa = vec![0; s.len()];
+    let mut csa = vec![0; s.len()];
 
     // duval
     let factors = duval(s);
@@ -30,10 +38,10 @@ pub fn naive_circular_suffix_array(s: &[u8]) -> Vec<usize> {
 
     // populate the suffix array with the starting indices of the sorted rotations
     for (i, (_, start)) in rotations.into_iter().enumerate() {
-        sa[i] = start;
+        csa[i] = start;
     }
 
-    sa
+    csa
 }
 
 #[cfg(test)]

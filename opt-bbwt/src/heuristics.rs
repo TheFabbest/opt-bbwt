@@ -122,11 +122,7 @@ fn compute_repeated_factors(
 mod tests {
 
     use crate::{
-        file::generate_random_binary_string,
-        lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach},
-        rank::sa_to_rank,
-        saca::optimal_suffix_array_bytes,
-        string::rotate_string,
+        file::generate_random_binary_string, lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, string::rotate_string, suffix_array::suffix_array,
     };
 
     use super::*;
@@ -173,8 +169,7 @@ mod tests {
         let (start, period_length) = shiloach(&text);
         let s: Vec<u8> = (0..period_length).map(|k| text[(start + k) % n]).collect();
 
-        let mut sa = vec![0; s.len()];
-        optimal_suffix_array_bytes(&s, &mut sa);
+        let sa = suffix_array(&s);
         let rank = sa_to_rank(&sa);
         let lyndon_table = lyndon_table(&s, &rank);
         let lyndon_suffix_table = lyndon_suffix_table(&s);
@@ -207,8 +202,7 @@ mod tests {
             .map(|k| s[(start + k) % s.len()])
             .collect();
 
-        let mut sa = vec![0; s.len()];
-        optimal_suffix_array_bytes(&s, &mut sa);
+        let sa = suffix_array(&s);
         let rank = sa_to_rank(&sa);
         let lyndon_table = lyndon_table(&s, &rank);
         let lyndon_suffix_table = lyndon_suffix_table(&s);

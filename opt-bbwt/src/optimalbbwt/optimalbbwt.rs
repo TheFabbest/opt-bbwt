@@ -1,5 +1,5 @@
 use crate::lyndon::{shiloach};
-use crate::saca::{circular_suffix_array};
+use crate::suffix_array::{circular_suffix_array};
 use std::cmp::Ordering;
 use std::collections::{HashSet, VecDeque};
 

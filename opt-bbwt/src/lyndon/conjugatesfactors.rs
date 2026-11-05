@@ -1,5 +1,6 @@
 use crate::lyndon::{self, shiloach};
-use crate::{rank, saca};
+use crate::suffix_array::suffix_array;
+use crate::{rank};
 use rustc_hash::FxHashMap;
 
 // takes a lambda and executes it on each factor of each conjugate of the string
@@ -19,9 +20,7 @@ where
         (0..period_length).map(|k| s[(start + k) % n]).collect();
 
     // suffix array construction
-    let mut sa = vec![0; aperiodic_least_rotation.len()];
-
-    saca::optimal_suffix_array_bytes(&aperiodic_least_rotation, &mut sa);
+    let sa = suffix_array(&aperiodic_least_rotation);
 
     // rank array
     let rank = rank::sa_to_rank(&sa);
@@ -71,8 +70,7 @@ pub fn get_factor_with_conjugates_grouped<'a>(
         };
     }
 
-    let mut sa = vec![0; n];
-    saca::optimal_suffix_array_bytes(aperiodic_least_rotation, &mut sa);
+    let sa = suffix_array(aperiodic_least_rotation);
 
     let rank = rank::sa_to_rank(&sa);
     let lyndon_table = lyndon::lyndontables::lyndon_table(aperiodic_least_rotation, &rank);

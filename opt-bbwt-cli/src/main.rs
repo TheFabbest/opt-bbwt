@@ -1,12 +1,6 @@
 use clap::Parser;
 use opt_bbwt::{
-    bbwt::bbwt,
-    bwt::bwt,
-    lyndon::{lyndon_suffix_table, lyndon_table},
-    optimalbbwt::optimal_bbwt_chain,
-    rank::sa_to_rank,
-    saca::{circular_suffix_array, sais},
-    string::rotate_string,
+    bbwt::bbwt, bwt::bwt, lyndon::{lyndon_suffix_table, lyndon_table}, optimalbbwt::optimal_bbwt, rank::sa_to_rank, string::rotate_string, suffix_array::{circular_suffix_array, suffix_array},
 };
 
 #[derive(Debug, Parser)]
@@ -42,13 +36,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("BBWT: {:?}", transformed);
         }
         "optimal_bbwt" => {
-            let rotation_index = optimal_bbwt_chain(&text, true);
+            let rotation_index = optimal_bbwt(&text);
             let rotated = rotate_string(&text, rotation_index);
             println!("Optimal BBWT rotation index: {}", rotation_index);
             println!("Rotated string: {:?}", rotated);
         }
         "lyndon" => {
-            let suffix_array = sais(&text);
+            let suffix_array = suffix_array(&text);
             let rank = sa_to_rank(&suffix_array);
             let lyndon_table = lyndon_table(&text, &rank);
             println!("Lyndon table: {:?}", lyndon_table);
@@ -58,7 +52,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             println!("Lyndon suffix table: {:?}", lyndon_suffix_table);
         }
         "suffix_array" => {
-            let suffix_array = sais(&text);
+            let suffix_array = suffix_array(&text);
             println!("Suffix array: {:?}", suffix_array);
         }
         "circular_suffix_array" => {

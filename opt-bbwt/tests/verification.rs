@@ -1,14 +1,21 @@
-use opt_bbwt::{bbwt::{bbwt, bbwt_into, unbbwt, unbbwt_into}, bwt::{bwt, bwt_into}, naive::{self, naive_optimal_bbwt}, optimalbbwt::{online_bbwt_check, optimal_bbwt_global_sort, optimal_bbwt_reuse}, saca::{circular_suffix_array, circular_suffix_array_into, optimal_suffix_array_bytes, sais, sais_into}};
-
-
+use opt_bbwt::optimalbbwt::variants::{
+    naive_optimal_bbwt, online_bbwt_check, optimal_bbwt_global_sort, optimal_bbwt_reuse,
+};
+use opt_bbwt::suffix_array::variants::{optimal_suffix_array_bytes, sais};
+use opt_bbwt::{
+    bbwt::{
+        bbwt::{bbwt, bbwt_into, unbbwt, unbbwt_into},
+        naive::naive_bbwt,
+    },
+    bwt::{bwt, bwt_into},
+    suffix_array::{circular_suffix_array, variants::naive_circular_suffix_array},
+};
 
 #[test]
 fn suffix_array_implementations_agree() {
     for input in [b"abracadabra".as_slice(), b"banana", b"aaaa"] {
-        let mut optimal = vec![0; input.len()];
-        let mut sais_output = vec![0; input.len()];
-        optimal_suffix_array_bytes(input, &mut optimal);
-        sais_into(input, &mut sais_output);
+        let optimal = optimal_suffix_array_bytes(input);
+        let sais_output = sais(input);
         assert_eq!(optimal, sais_output);
         assert_eq!(sais(input), sais_output);
     }
@@ -17,7 +24,7 @@ fn suffix_array_implementations_agree() {
 #[test]
 fn transform_implementations_agree() {
     for input in [b"banana".as_slice(), b"abracadabra", b""] {
-        assert_eq!(bbwt(input), naive::bbwt::naive_bbwt(input));
+        assert_eq!(bbwt(input), naive_bbwt(input));
 
         let mut bbwt_output = vec![0; input.len()];
         bbwt_into(input, &mut bbwt_output);
@@ -32,10 +39,9 @@ fn transform_implementations_agree() {
 #[test]
 fn circular_suffix_array_implementations_agree() {
     for input in [b"banana".as_slice(), b"abracadabra", b"aaaa"] {
-        let mut output = vec![0; input.len()];
-        circular_suffix_array_into(input, &mut output);
+        let output = circular_suffix_array(input);
         assert_eq!(circular_suffix_array(input), output);
-        assert_eq!(output, naive::csa::naive_circular_suffix_array(input));
+        assert_eq!(output, naive_circular_suffix_array(input));
     }
 }
 
@@ -62,7 +68,11 @@ fn optimal_bbwt_matches_quadratic_reference() {
         let result_online = online_bbwt_check(input);
         let naive_result = naive_optimal_bbwt(input);
 
-        let rotation_through_w = [input[result_through_w..].as_ref(), &input[..result_through_w]].concat();
+        let rotation_through_w = [
+            input[result_through_w..].as_ref(),
+            &input[..result_through_w],
+        ]
+        .concat();
         let rotation_reuse = [input[result_reuse..].as_ref(), &input[..result_reuse]].concat();
         let rotation_online = [input[result_online..].as_ref(), &input[..result_online]].concat();
         let naive_rotation = [input[naive_result..].as_ref(), &input[..naive_result]].concat();
