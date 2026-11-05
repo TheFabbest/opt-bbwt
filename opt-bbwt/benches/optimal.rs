@@ -11,9 +11,9 @@ fn optimal_bbwt_benchmarks(c: &mut Criterion) {
     )
     .expect("the benchmark corpus must be available");
     c.bench_function("naive_optimal_bbwt", |b| b.iter(|| naive_optimal_bbwt(black_box(&input))));
-    c.bench_function("optimal_bbwt_through_w", |b| b.iter(|| optimal_bbwt_global_sort(black_box(&input))));
-    c.bench_function("optimal_bbwt_chain", |b| b.iter(|| optimal_bbwt_chain(black_box(&input), black_box(true))));
     c.bench_function("optimal_bbwt_reuse", |b| b.iter(|| optimal_bbwt_reuse(black_box(&input))));
+    c.bench_function("optimal_bbwt_global_sort", |b| b.iter(|| optimal_bbwt_global_sort(black_box(&input))));
+    c.bench_function("optimal_bbwt_chain", |b| b.iter(|| optimal_bbwt_chain(black_box(&input), black_box(true))));
 }
 
 criterion_group!(benches, optimal_bbwt_benchmarks);
