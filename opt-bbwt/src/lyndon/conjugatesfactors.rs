@@ -1,6 +1,5 @@
 use crate::lyndon::{self, shiloach};
-use crate::suffix_array::suffix_array;
-use crate::{rank};
+use crate::suffix_array::{sa_to_rank, suffix_array};
 use rustc_hash::FxHashMap;
 
 /// Applies `f` to each factor of each conjugate of `s`.
@@ -20,7 +19,7 @@ where
 
     let sa = suffix_array(&aperiodic_least_rotation);
 
-    let rank = rank::sa_to_rank(&sa);
+    let rank = sa_to_rank(&sa);
 
     let lyndon_table = lyndon::lyndontables::lyndon_table(&aperiodic_least_rotation, &rank);
 
@@ -33,16 +32,14 @@ where
         f(factor);
     }
 
-    for i in 0..period_length-1 {
+    for i in 0..period_length - 1 {
         let factor_end = i + 1;
         let factor_length = lyndon_suffix_table[i];
         let factor_start = factor_end - factor_length;
         let factor = &aperiodic_least_rotation[factor_start..factor_end];
         f(factor);
     }
-
 }
-
 
 /// Groups equal factors and the conjugate indices where they occur.
 pub struct GroupedFactors<'a> {
@@ -68,7 +65,7 @@ pub fn get_factor_with_conjugates_grouped<'a>(
 
     let sa = suffix_array(aperiodic_least_rotation);
 
-    let rank = rank::sa_to_rank(&sa);
+    let rank = sa_to_rank(&sa);
     let lyndon_table = lyndon::lyndontables::lyndon_table(aperiodic_least_rotation, &rank);
     let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(aperiodic_least_rotation);
 
@@ -128,15 +125,15 @@ pub fn get_factor_with_conjugates_grouped<'a>(
     for factor in &sorted_factors {
         let (head, _) = factors_map[factor];
         let start = factor_indices.len();
-        
+
         let mut curr = head;
         while curr != usize::MAX {
             factor_indices.push(arena[curr].0);
             curr = arena[curr].1;
         }
-        
+
         factor_indices[start..].sort_unstable();
-        
+
         let mut write_idx = start;
         for read_idx in start..factor_indices.len() {
             if write_idx == start || factor_indices[read_idx] != factor_indices[write_idx - 1] {
@@ -144,7 +141,7 @@ pub fn get_factor_with_conjugates_grouped<'a>(
                 write_idx += 1;
             }
         }
-        
+
         factor_indices.truncate(write_idx);
         let keep_len = write_idx - start;
 

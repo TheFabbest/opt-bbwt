@@ -11,7 +11,7 @@ The transform APIs are grouped under `opt_bbwt::transform`: use
 `transform::bwt` and `transform::bbwt` for the default implementations, and
 `transform::bbwt::naive` for the reference implementation.
 
-Being a work in progress, the library is not yet fully documented, but the main algorithms are already implemented and tested. However, the interface is still subject to change, and the library is not yet to be considered stable.
+Being a work in progress, the interface is still subject to change, and the library is not yet to be considered stable.
 
 ## Documentation
 

@@ -2,10 +2,11 @@ use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use opt_bbwt::transform::{bbwt::bbwt, bwt::bwt};
 
 fn transform_benchmarks(c: &mut Criterion) {
-    let corpus_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("../corpora/dna");
+    let corpus_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../corpora/dna");
     let input = opt_bbwt::file::load_file_prefix(
-        corpus_path.to_str().expect("corpus path must be valid UTF-8"),
+        corpus_path
+            .to_str()
+            .expect("corpus path must be valid UTF-8"),
         50_000,
     )
     .expect("the benchmark corpus must be available");

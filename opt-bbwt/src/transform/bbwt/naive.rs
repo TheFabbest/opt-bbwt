@@ -1,7 +1,6 @@
 use crate::lyndon::duval;
 
 /// Reference BBWT implementation intended for correctness checks and research.
-
 fn omega_cmp(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
     // Compare their infinite expansions a.iter().cycle() and b.iter().cycle()
     let len_lcm = a.len() * b.len(); // or compare up to a.len() * b.len() steps
@@ -24,14 +23,20 @@ pub fn naive_bbwt(text: &[u8]) -> Vec<u8> {
         };
         let factor = &text[factor_start..factor_start + factor_length];
         for i in 0..factor_length {
-            let rotation: Vec<u8> = factor.iter().cycle().skip(i).take(factor_length).copied().collect();
+            let rotation: Vec<u8> = factor
+                .iter()
+                .cycle()
+                .skip(i)
+                .take(factor_length)
+                .copied()
+                .collect();
             conjugates.push(rotation);
         }
     }
-    
+
     // 3. Sort conjugates lexicographically
     conjugates.sort_by(|a, b| omega_cmp(a, b));
-    
+
     // 4. Extract the last character of each sorted conjugate
     let mut result = Vec::new();
     for conjugate in conjugates {

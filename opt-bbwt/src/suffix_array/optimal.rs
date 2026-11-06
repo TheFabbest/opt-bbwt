@@ -12,7 +12,6 @@ const MAX_CHAR: usize = usize::MAX - 5;
 #[allow(dead_code)]
 const MSB: usize = 1usize << (usize::BITS - 1);
 
-
 fn chars_to_usize_array(input_chars: &[u8]) -> Vec<usize> {
     input_chars.iter().map(|&c| c as usize).collect()
 }
@@ -96,7 +95,11 @@ fn compare_substrings(
     } else if offset_a == end_a && offset_b == end_b {
         Ordering::Equal
     } else if offset_a == end_a {
-        if using_l_type { Ordering::Less } else { Ordering::Greater }
+        if using_l_type {
+            Ordering::Less
+        } else {
+            Ordering::Greater
+        }
     } else if using_l_type {
         Ordering::Greater
     } else {
@@ -106,7 +109,9 @@ fn compare_substrings(
 
 fn heapify(sa: &mut [usize], n_s: usize, heap_len: usize, mut index: usize) {
     let length = sa.len();
-    if length < n_s { return; }
+    if length < n_s {
+        return;
+    }
     let (sa_prefix, sa_suffix) = sa.split_at_mut(length - n_s);
     let array = &mut sa_suffix[..n_s];
 
@@ -167,8 +172,16 @@ fn custom_binary_search(
             checking -= 1;
         }
 
-        let arr_val = if is_valid(checking) { array[checking] } else { usize::MAX };
-        let inp_val = if arr_val < input.len() { input[arr_val] } else { usize::MAX };
+        let arr_val = if is_valid(checking) {
+            array[checking]
+        } else {
+            usize::MAX
+        };
+        let inp_val = if arr_val < input.len() {
+            input[arr_val]
+        } else {
+            usize::MAX
+        };
 
         if is_valid(checking) && inp_val >= value {
             right = checking;
@@ -197,9 +210,8 @@ fn custom_binary_search_last(
     let mut left = 0;
     let mut right = length - 1;
 
-    let is_valid = |index: usize| {
-        array[index] < length && (index == length - 1 || array[index + 1] != BH)
-    };
+    let is_valid =
+        |index: usize| array[index] < length && (index == length - 1 || array[index + 1] != BH);
 
     while right > left {
         let mid = left + (right - left) / 2 + ((right - left) % 2);
@@ -208,8 +220,16 @@ fn custom_binary_search_last(
             checking += 1;
         }
 
-        let arr_val = if is_valid(checking) { array[checking] } else { usize::MAX };
-        let inp_val = if arr_val < input.len() { input[arr_val] } else { usize::MAX };
+        let arr_val = if is_valid(checking) {
+            array[checking]
+        } else {
+            usize::MAX
+        };
+        let inp_val = if arr_val < input.len() {
+            input[arr_val]
+        } else {
+            usize::MAX
+        };
 
         if is_valid(checking) && inp_val <= value {
             left = checking;
@@ -225,7 +245,6 @@ fn custom_binary_search_last(
         right
     }
 }
-
 
 fn count_s_type(input: &[usize]) -> usize {
     let length = input.len();
@@ -270,7 +289,9 @@ fn place_indices_of_type(input: &[usize], sa: &mut [usize], using_l_type: bool) 
 
 fn merge_sort_substrings(input: &[usize], sa: &mut [usize], n_s: usize, using_l_type: bool) {
     let length = sa.len();
-    if n_s == 0 || length < n_s { return; }
+    if n_s == 0 || length < n_s {
+        return;
+    }
     let mut step = 1;
 
     while step < length {
@@ -317,14 +338,11 @@ fn merge_sort_substrings(input: &[usize], sa: &mut [usize], n_s: usize, using_l_
     }
 }
 
-fn construct_reduced_problem(
-    input: &[usize],
-    sa: &mut [usize],
-    n_s: usize,
-    using_l_type: bool,
-) {
+fn construct_reduced_problem(input: &[usize], sa: &mut [usize], n_s: usize, using_l_type: bool) {
     let length = sa.len();
-    if n_s == 0 || length < n_s { return; }
+    if n_s == 0 || length < n_s {
+        return;
+    }
     let mut current_char = 0;
     sa[0] = current_char;
 
@@ -338,7 +356,9 @@ fn construct_reduced_problem(
 }
 
 fn heap_sort_reduced_problem(sa: &mut [usize], n_s: usize) {
-    if n_s == 0 { return; }
+    if n_s == 0 {
+        return;
+    }
     build_heap(sa, n_s);
     let length = sa.len();
 
@@ -353,12 +373,7 @@ fn heap_sort_reduced_problem(sa: &mut [usize], n_s: usize) {
     }
 }
 
-fn restore_from_recursion(
-    input: &[usize],
-    sa: &mut [usize],
-    n_s: usize,
-    using_l_type: bool,
-) {
+fn restore_from_recursion(input: &[usize], sa: &mut [usize], n_s: usize, using_l_type: bool) {
     let length = sa.len();
     let mut next_is_l = false;
     let mut sum = 0;
@@ -408,8 +423,16 @@ fn preprocess(input: &[usize], sa: &mut [usize], n_s: usize, using_l_type: bool)
 
     // Must remain stable. We replaced unwrap_or with direct indexing for performance.
     sa.sort_by(|&a, &b| {
-        let key_a = if a < input.len() { input[a] } else { usize::MAX };
-        let key_b = if b < input.len() { input[b] } else { usize::MAX };
+        let key_a = if a < input.len() {
+            input[a]
+        } else {
+            usize::MAX
+        };
+        let key_b = if b < input.len() {
+            input[b]
+        } else {
+            usize::MAX
+        };
         key_a.cmp(&key_b)
     });
 }
@@ -432,13 +455,25 @@ fn initialize_sa(input: &[usize], sa: &mut [usize], using_l_type: bool) {
                 first
             };
 
-            if (using_l_type && l == 0) || (!using_l_type && l == length - 1) || l >= length || first >= length {
+            if (using_l_type && l == 0)
+                || (!using_l_type && l == length - 1)
+                || l >= length
+                || first >= length
+            {
                 next_is_l = current_is_l;
                 continue;
             }
 
-            let position = if using_l_type { l.wrapping_sub(1) } else { l + 1 };
-            let further_position = if using_l_type { l.wrapping_sub(2) } else { l + 2 };
+            let position = if using_l_type {
+                l.wrapping_sub(1)
+            } else {
+                l + 1
+            };
+            let further_position = if using_l_type {
+                l.wrapping_sub(2)
+            } else {
+                l + 2
+            };
 
             if position < length && sa[position] >= length {
                 next_is_l = current_is_l;
@@ -464,9 +499,17 @@ fn initialize_sa(input: &[usize], sa: &mut [usize], using_l_type: bool) {
             }
 
             let n_l = if using_l_type {
-                if r_l >= first { r_l - first + 1 } else { 0 }
+                if r_l >= first {
+                    r_l - first + 1
+                } else {
+                    0
+                }
             } else {
-                if r_l >= l { r_l - l + 1 } else { 0 }
+                if r_l >= l {
+                    r_l - l + 1
+                } else {
+                    0
+                }
             };
 
             if n_l == 0 {
@@ -519,7 +562,6 @@ fn initialize_sa(input: &[usize], sa: &mut [usize], using_l_type: bool) {
     }
 }
 
-
 struct Case4Cache {
     l_cached: usize,
     s_cached: usize,
@@ -543,16 +585,10 @@ impl Case4Cache {
         }
 
         let mut r_l = l + 1;
-        while r_l < length
-            && sa[r_l] != R1
-            && sa[r_l] < length
-            && input[sa[r_l]] == input[j]
-        {
+        while r_l < length && sa[r_l] != R1 && sa[r_l] < length && input[sa[r_l]] == input[j] {
             r_l += 1;
         }
-        if r_l < length
-            && (sa[r_l] == R1 || (sa[r_l] < length && input[sa[r_l]] == input[j]))
-        {
+        if r_l < length && (sa[r_l] == R1 || (sa[r_l] < length && input[sa[r_l]] == input[j])) {
             sa[r_l] = j;
         }
     }
@@ -566,10 +602,7 @@ impl Case4Cache {
         let length = sa.len();
 
         let mut r_l = l;
-        while r_l > 0
-            && sa[r_l - 1] != R1
-            && sa[r_l - 1] < length
-            && input[sa[r_l - 1]] == input[j]
+        while r_l > 0 && sa[r_l - 1] != R1 && sa[r_l - 1] < length && input[sa[r_l - 1]] == input[j]
         {
             r_l -= 1;
         }
@@ -708,7 +741,10 @@ impl Case4Cache {
                     let src_start = l + 3;
                     let src_end = r_l;
                     let dest = l + 2;
-                    if src_start <= src_end && src_end <= length && dest + (src_end - src_start) <= length {
+                    if src_start <= src_end
+                        && src_end <= length
+                        && dest + (src_end - src_start) <= length
+                    {
                         sa.copy_within(src_start..src_end, dest);
                         if r_l > 0 {
                             sa[r_l - 1] = j;
@@ -775,7 +811,9 @@ fn sort_s(input: &[usize], sa: &mut [usize], cache: &mut Case4Cache) {
 
 fn sort_l(input: &[usize], sa: &mut [usize], cache: &mut Case4Cache) {
     let length = sa.len();
-    if length == 0 { return; }
+    if length == 0 {
+        return;
+    }
     cache.sort_l_body(input, sa, length - 1);
 
     let mut i = 0;
@@ -819,11 +857,7 @@ fn induced_sorting(input: &[usize], sa: &mut [usize], using_l_type: bool) {
     }
 }
 
-fn optimal_suffix_array_first(
-    input: &[usize],
-    sa: &mut [usize],
-    prev_n_s: &mut usize,
-) -> bool {
+fn optimal_suffix_array_first(input: &[usize], sa: &mut [usize], prev_n_s: &mut usize) -> bool {
     let length = sa.len();
     if length < 2 {
         if length == 1 {
@@ -875,16 +909,12 @@ fn optimal_suffix_array_second(input: &[usize], sa: &mut [usize]) {
     induced_sorting(input, sa, using_l_type);
 }
 
-unsafe fn optimal_suffix_array(
-    input: *mut usize,
-    sa: *mut usize,
-    length: usize,
-) {
+unsafe fn optimal_suffix_array(input: *mut usize, sa: *mut usize, length: usize) {
     let mut prev_n_s: usize = 0;
-    
+
     let input_slice = std::slice::from_raw_parts(input, length);
     let sa_slice = std::slice::from_raw_parts_mut(sa, length);
-    
+
     let mut needs_recursion = optimal_suffix_array_first(input_slice, sa_slice, &mut prev_n_s);
     if !needs_recursion {
         return;
@@ -901,7 +931,7 @@ unsafe fn optimal_suffix_array(
         new_input = old_output;
         let new_length = prev_n_s;
         let new_output = old_output.add(old_length - new_length);
-        
+
         let prev_had_space = (*new_input) & MSB != 0;
         if prev_had_space {
             *new_input &= !MSB;
@@ -909,8 +939,9 @@ unsafe fn optimal_suffix_array(
 
         let new_input_slice = std::slice::from_raw_parts(new_input, new_length);
         let new_output_slice = std::slice::from_raw_parts_mut(new_output, new_length);
-        needs_recursion = optimal_suffix_array_first(new_input_slice, new_output_slice, &mut prev_n_s);
-        
+        needs_recursion =
+            optimal_suffix_array_first(new_input_slice, new_output_slice, &mut prev_n_s);
+
         if prev_had_space {
             *new_input |= MSB;
         }
@@ -930,7 +961,7 @@ unsafe fn optimal_suffix_array(
         old_old_length = old_length;
         old_length = new_length;
     }
-    
+
     let mut old_input = new_input;
 
     while recursion_depth > 0 {
@@ -962,7 +993,7 @@ unsafe fn optimal_suffix_array(
             *old_input |= MSB;
         }
     }
-    
+
     let input_slice = std::slice::from_raw_parts(input, length);
     let sa_slice = std::slice::from_raw_parts_mut(sa, length);
     optimal_suffix_array_second(input_slice, sa_slice);
@@ -971,9 +1002,7 @@ unsafe fn optimal_suffix_array(
 /// Builds a suffix array for a byte slice into `sa`.
 pub fn optimal_suffix_array_bytes_into(input_chars: &[u8], sa: &mut [usize]) {
     let mut input = chars_to_usize_array(input_chars);
-    unsafe { 
-        optimal_suffix_array(input.as_mut_ptr(), sa.as_mut_ptr(), input.len()) 
-    };
+    unsafe { optimal_suffix_array(input.as_mut_ptr(), sa.as_mut_ptr(), input.len()) };
 }
 
 /// Builds a suffix array for a byte slice.

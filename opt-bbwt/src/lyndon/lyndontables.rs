@@ -1,7 +1,7 @@
 pub fn lyndon_table(s: &[u8], rank: &[usize]) -> Vec<usize> {
     let len = s.len();
     let mut lyndon_table = vec![0; len];
-    
+
     for i in (0..len).rev() {
         lyndon_table[i] = 1;
         let mut j = i + 1;
@@ -21,10 +21,10 @@ pub fn compute_lyn_optimized(rank: &[usize], lyn_s: &[usize]) -> Vec<usize> {
     for i in (0..n).rev() {
         lyn[i] = 1;
         let mut j = i + 1;
-        
+
         while j < n {
             let can_merge = if lyn_s[j - 1] < (j - i) {
-                false 
+                false
             } else {
                 rank[i] < rank[j]
             };
@@ -37,7 +37,7 @@ pub fn compute_lyn_optimized(rank: &[usize], lyn_s: &[usize]) -> Vec<usize> {
             }
         }
     }
-    
+
     lyn
 }
 
@@ -61,7 +61,6 @@ pub fn lyndon_suffix_table(s: &[u8]) -> Vec<usize> {
     }
     lyndon_suffix_table
 }
-
 
 #[cfg(test)]
 mod tests {

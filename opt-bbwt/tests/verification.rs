@@ -1,21 +1,13 @@
-use opt_bbwt::{
-    optimalbbwt,
-    suffix_array::circular_suffix_array,
-    transform,
-};
-use opt_bbwt::optimalbbwt::{
-    globalsort::optimal_bbwt_global_sort,
-    naive::naive_optimal_bbwt,
-    optimalbbwt::online_bbwt_check,
+use opt_bbwt::optimal_bbwt::{
+    chain::online_bbwt_check, globalsort::optimal_bbwt_global_sort, naive::naive_optimal_bbwt,
     reuse::optimal_bbwt_reuse,
 };
 use opt_bbwt::suffix_array::{
     circular_sais::circular_suffix_array as circular_sais,
-    naive_circular::naive_circular_suffix_array,
-    optimal::optimal_suffix_array_bytes,
-    sais::sais,
+    naive_circular::naive_circular_suffix_array, optimal::optimal_suffix_array_bytes, sais::sais,
 };
 use opt_bbwt::transform::bbwt::naive::naive_bbwt;
+use opt_bbwt::{optimal_bbwt, suffix_array::circular_suffix_array, transform};
 
 #[test]
 fn suffix_array_implementations_agree() {
@@ -36,15 +28,12 @@ fn public_default_and_variant_entry_points_are_consistent() {
         transform::bwt::bwt_into(input, &mut output);
         output
     });
-    assert_eq!(
-        optimalbbwt::optimal_bbwt(input),
-        online_bbwt_check(input)
-    );
+    assert_eq!(optimal_bbwt::optimal_bbwt(input), online_bbwt_check(input));
 }
 
 #[test]
 fn optimal_bbwt_variants_accept_empty_input() {
-    assert_eq!(optimalbbwt::optimal_bbwt(b""), 0);
+    assert_eq!(optimal_bbwt::optimal_bbwt(b""), 0);
     assert_eq!(naive_optimal_bbwt(b""), 0);
     assert_eq!(optimal_bbwt_global_sort(b""), 0);
     assert_eq!(optimal_bbwt_reuse(b""), 0);

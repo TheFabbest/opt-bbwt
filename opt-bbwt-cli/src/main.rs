@@ -1,6 +1,10 @@
 use clap::Parser;
 use opt_bbwt::{
-    transform::{bbwt::bbwt, bwt::bwt}, lyndon::{lyndon_suffix_table, lyndon_table}, optimalbbwt::optimal_bbwt, rank::sa_to_rank, string::rotate_string, suffix_array::{circular_suffix_array, suffix_array},
+    lyndon::{lyndon_suffix_table, lyndon_table},
+    optimal_bbwt::optimal_bbwt,
+    string::rotate_string,
+    suffix_array::{circular_suffix_array, sa_to_rank, suffix_array},
+    transform::{bbwt::bbwt, bwt::bwt},
 };
 
 #[derive(Debug, Parser)]

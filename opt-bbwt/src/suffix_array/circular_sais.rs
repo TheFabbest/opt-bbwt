@@ -1,4 +1,8 @@
-use crate::{lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, suffix_array::suffix_array, string::from_period_slice_into};
+use crate::{
+    lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach},
+    string::from_period_slice_into,
+    suffix_array::{sa_to_rank, suffix_array},
+};
 
 const L_TYPE: bool = false;
 const S_TYPE: bool = true;
@@ -46,7 +50,7 @@ impl BitVector {
         if p > max_pos {
             p = max_pos;
         }
-        
+
         while p >= 0 {
             if self.bits[p as usize] {
                 return p;
@@ -245,7 +249,6 @@ fn circular_suffix_array_inner(
 
     spc_suff.set(len, true);
 
-    
     let mut tmp_buckets = vec![0; alph_size + 1];
 
     for i in 0..len {
@@ -262,7 +265,15 @@ fn circular_suffix_array_inner(
     }
 
     tmp_buckets.copy_from_slice(&buckets);
-    pre_sort_suffixes_l(in_str, sa, len, lb_fac, &suff_type, &spc_suff, &mut tmp_buckets);
+    pre_sort_suffixes_l(
+        in_str,
+        sa,
+        len,
+        lb_fac,
+        &suff_type,
+        &spc_suff,
+        &mut tmp_buckets,
+    );
 
     tmp_buckets.copy_from_slice(&buckets);
     pre_sort_suffixes_s(in_str, sa, len, lb_fac, &suff_type, &mut tmp_buckets);
@@ -360,7 +371,14 @@ fn circular_suffix_array_inner(
         let mut rec_sa = vec![-1isize; num_lms_suff];
         let mut new_buckets = vec![0; num_labels + 1];
         compute_buckets_structure(&red_str, &mut new_buckets, num_labels);
-        circular_suffix_array_inner(&red_str, &mut rec_sa, num_lms_suff, &red_factors, num_labels, &new_buckets);
+        circular_suffix_array_inner(
+            &red_str,
+            &mut rec_sa,
+            num_lms_suff,
+            &red_factors,
+            num_labels,
+            &new_buckets,
+        );
 
         out_pos = 0;
         for in_pos in 0..len {
@@ -389,12 +407,19 @@ fn circular_suffix_array_inner(
     }
 
     tmp_buckets.copy_from_slice(&buckets);
-    pre_sort_suffixes_l(in_str, sa, len, lb_fac, &suff_type, &spc_suff, &mut tmp_buckets);
+    pre_sort_suffixes_l(
+        in_str,
+        sa,
+        len,
+        lb_fac,
+        &suff_type,
+        &spc_suff,
+        &mut tmp_buckets,
+    );
 
     tmp_buckets.copy_from_slice(&buckets);
     pre_sort_suffixes_s(in_str, sa, len, lb_fac, &suff_type, &mut tmp_buckets);
 }
-
 
 pub fn optimal_csa(input: &[u8]) -> usize {
     let (start, period_length) = shiloach(input);
@@ -402,7 +427,6 @@ pub fn optimal_csa(input: &[u8]) -> usize {
     let mut text_storage = vec![0; period_length];
     from_period_slice_into(input, start, period_length, &mut text_storage);
     let text = text_storage.as_slice();
-
 
     let min_c = *text.iter().min().unwrap() as usize;
     let max_c = *text.iter().max().unwrap() as usize;
@@ -432,11 +456,7 @@ pub fn optimal_csa(input: &[u8]) -> usize {
 
     let mut prev_char = None;
     for idx in sa {
-        let prev_idx = if *idx == 0 {
-            n - 1
-        } else {
-            *idx - 1
-        };
+        let prev_idx = if *idx == 0 { n - 1 } else { *idx - 1 };
 
         let current = text[prev_idx];
 
@@ -448,9 +468,8 @@ pub fn optimal_csa(input: &[u8]) -> usize {
 
     for shift in 1..n {
         let start = (n - shift) % n;
-        let rotated_string = &concatenated[n - start.. n + n - start].to_vec();
+        let rotated_string = &concatenated[n - start..n + n - start].to_vec();
 
-        
         let mut factors: Vec<usize> = Vec::new();
 
         let mut factor_start = shift;
@@ -459,7 +478,7 @@ pub fn optimal_csa(input: &[u8]) -> usize {
             factors.push(factor_start - shift);
             factor_start += factor_len;
         }
-        
+
         let mut u_factor_lengths = Vec::new();
         let mut end = shift;
         while end > 0 {
@@ -475,7 +494,6 @@ pub fn optimal_csa(input: &[u8]) -> usize {
             factors.push(current_offset);
             current_offset += len;
         }
-
 
         let mut lb_fac = BitVector::new(n + 1);
         for &f in &factors {
@@ -495,7 +513,8 @@ pub fn optimal_csa(input: &[u8]) -> usize {
                 .find(|&&start| start <= idx as usize)
                 .copied()
                 .unwrap_or(0);
-            let factor_len = if let Some(&next_start) = factors.iter().find(|&&s| s > factor_start) {
+            let factor_len = if let Some(&next_start) = factors.iter().find(|&&s| s > factor_start)
+            {
                 next_start - factor_start
             } else {
                 n - factor_start
@@ -512,7 +531,7 @@ pub fn optimal_csa(input: &[u8]) -> usize {
             if prev_char != Some(current) {
                 run_count += 1;
                 if run_count >= best_run_count {
-                    break; 
+                    break;
                 }
                 prev_char = Some(current);
             }

@@ -42,3 +42,22 @@ pub fn suffix_array(text: &[u8]) -> Vec<usize> {
 pub fn circular_suffix_array(text: &[u8]) -> Vec<usize> {
     circular_sais::circular_suffix_array(text)
 }
+
+/// Converts suffix-array positions into ranks.
+///
+/// # Examples
+/// ```
+/// use opt_bbwt::suffix_array::{suffix_array, sa_to_rank};
+/// let text = b"banana";
+/// let sa = suffix_array(text);
+/// let rank = sa_to_rank(&sa);
+/// assert_eq!(rank, vec![3, 2, 5, 1, 4, 0]);
+/// ```
+pub fn sa_to_rank(sa: &[usize]) -> Vec<usize> {
+    let n = sa.len();
+    let mut rank = vec![0; n];
+    for (i, &suffix_index) in sa.iter().enumerate() {
+        rank[suffix_index] = i;
+    }
+    rank
+}

@@ -23,7 +23,10 @@ pub fn from_period_slice_into(s: &[u8], start: usize, period_length: usize, outp
     if output.is_empty() {
         return;
     }
-    assert!(!s.is_empty(), "cannot take a periodic slice from an empty input");
+    assert!(
+        !s.is_empty(),
+        "cannot take a periodic slice from an empty input"
+    );
     let start = start % s.len();
     for (offset, byte) in output.iter_mut().enumerate() {
         *byte = s[(start + offset) % s.len()];
@@ -59,7 +62,6 @@ pub fn rotate_string_into(s: &[u8], start: usize, output: &mut [u8]) {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -82,7 +84,7 @@ mod tests {
     fn test_from_period_slice_multiple_chars() {
         let s = vec![1, 2, 3, 4, 5];
         let result = from_period_slice(&s, 4, 5);
-        assert_eq!(result, vec![5,1,2,3,4]);
+        assert_eq!(result, vec![5, 1, 2, 3, 4]);
     }
 
     #[test]

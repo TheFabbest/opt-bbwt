@@ -9,13 +9,12 @@ fn omega_cmp(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
 
 /// Builds a circular suffix array using the reference implementation.
 pub fn naive_circular_suffix_array(s: &[u8]) -> Vec<usize> {
-    
     let mut csa = vec![0; s.len()];
 
     let factors = duval(s);
 
     let mut rotations = Vec::new();
-    
+
     for &factor_start in factors.iter().rev() {
         let factor_len = if let Some(&next_start) = factors.iter().find(|&&s| s > factor_start) {
             next_start - factor_start
@@ -24,7 +23,11 @@ pub fn naive_circular_suffix_array(s: &[u8]) -> Vec<usize> {
         };
         let factor = &s[factor_start..factor_start + factor_len];
         for i in 0..factor_len {
-            let rotation = factor[i..].iter().chain(factor[..i].iter()).copied().collect::<Vec<u8>>();
+            let rotation = factor[i..]
+                .iter()
+                .chain(factor[..i].iter())
+                .copied()
+                .collect::<Vec<u8>>();
             rotations.push((rotation, factor_start + i));
         }
     }

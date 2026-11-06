@@ -141,7 +141,6 @@ pub fn unbbwt_into(in_str: &[u8], output: &mut [u8]) {
             std_perm[t] = std::usize::MAX;
         }
     }
-
 }
 
 #[cfg(test)]

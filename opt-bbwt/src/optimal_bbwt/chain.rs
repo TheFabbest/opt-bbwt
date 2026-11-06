@@ -1,5 +1,5 @@
-use crate::lyndon::{shiloach};
-use crate::suffix_array::{circular_suffix_array};
+use crate::lyndon::shiloach;
+use crate::suffix_array::circular_suffix_array;
 use std::cmp::Ordering;
 use std::collections::{HashSet, VecDeque};
 
@@ -52,13 +52,18 @@ const CHUNK: usize = 512;
 fn mul_mod(a: u64, b: u64) -> u64 {
     let product = (a as u128) * (b as u128);
     let mut r = (product & HASH_MOD as u128) as u64 + (product >> 61) as u64;
-    if r >= HASH_MOD { r -= HASH_MOD; }
+    if r >= HASH_MOD {
+        r -= HASH_MOD;
+    }
     r
 }
 
 /// One occurrence of a Lyndon factor in the window: text[start..start+len] (absolute positions).
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
-struct Factor { start: usize, len: usize }
+struct Factor {
+    start: usize,
+    len: usize,
+}
 
 /// Returns x mod text_len, for 0 <= x < 3*text_len, using comparisons instead of a division.
 /// It maps an absolute position (which may run past the end of the text because the window wraps
@@ -66,19 +71,38 @@ struct Factor { start: usize, len: usize }
 /// real `%` was measurably slower.
 #[inline(always)]
 fn wrap_index(x: usize, text_len: usize) -> usize {
-    if x < text_len { x } else if x < 2 * text_len { x - text_len } else { x - 2 * text_len }
+    if x < text_len {
+        x
+    } else if x < 2 * text_len {
+        x - text_len
+    } else {
+        x - 2 * text_len
+    }
 }
 
 /// A conjugate of a factor: the factor's text rotated left by `offset`. It is infinite-periodic
 /// when compared (see `compare_conjugates`).
 #[derive(Clone, Copy)]
-struct Conjugate { factor_start: usize, factor_len: usize, offset: usize }
+struct Conjugate {
+    factor_start: usize,
+    factor_len: usize,
+    offset: usize,
+}
 
 #[derive(Default, Clone, Debug)]
 pub struct ChainStats {
-    pub steps: u64, pub cmp_calls: u64, pub cmp_chars: u64,
-    pub phys_del: u64, pub phys_ins: u64, pub deferred_steps: u64, pub flushes: u64,
-    pub risky: u64, pub dead: u64, pub ins: u64, pub growth: u64, pub lmax_sum: u64,
+    pub steps: u64,
+    pub cmp_calls: u64,
+    pub cmp_chars: u64,
+    pub phys_del: u64,
+    pub phys_ins: u64,
+    pub deferred_steps: u64,
+    pub flushes: u64,
+    pub risky: u64,
+    pub dead: u64,
+    pub ins: u64,
+    pub growth: u64,
+    pub lmax_sum: u64,
 }
 
 /// Compares two conjugates as infinite periodic words (each one repeats its own factor forever).
@@ -86,18 +110,42 @@ pub struct ChainStats {
 /// How it works: walk both words in parallel, each inside its own factor, wrapping to the factor's
 /// start when it ends. Two periodic words with periods la, lb that agree on la+lb characters are
 /// equal (Fine–Wilf), so `la + lb` characters are enough to decide.
-fn compare_conjugates(text: &[u8], text_len: usize, a: &Conjugate, b: &Conjugate, stats: &mut ChainStats) -> (usize, Ordering) {
+fn compare_conjugates(
+    text: &[u8],
+    text_len: usize,
+    a: &Conjugate,
+    b: &Conjugate,
+    stats: &mut ChainStats,
+) -> (usize, Ordering) {
     stats.cmp_calls += 1;
     let max_len = a.factor_len + b.factor_len;
-    let (mut off_a, mut off_b) = (a.offset, b.offset);                     // offset inside each factor
-    let (base_a, base_b) = (wrap_index(a.factor_start, text_len), wrap_index(b.factor_start, text_len));
+    let (mut off_a, mut off_b) = (a.offset, b.offset); // offset inside each factor
+    let (base_a, base_b) = (
+        wrap_index(a.factor_start, text_len),
+        wrap_index(b.factor_start, text_len),
+    );
     for k in 0..max_len {
-        let mut pos_a = base_a + off_a; if pos_a >= text_len { pos_a -= text_len; }      // text index of the k-th char of a
-        let mut pos_b = base_b + off_b; if pos_b >= text_len { pos_b -= text_len; }
+        let mut pos_a = base_a + off_a;
+        if pos_a >= text_len {
+            pos_a -= text_len;
+        } // text index of the k-th char of a
+        let mut pos_b = base_b + off_b;
+        if pos_b >= text_len {
+            pos_b -= text_len;
+        }
         let (char_a, char_b) = (text[pos_a], text[pos_b]);
-        if char_a != char_b { stats.cmp_chars += (k + 1) as u64; return (k, char_a.cmp(&char_b)); }
-        off_a += 1; if off_a == a.factor_len { off_a = 0; }                // wrap inside the factor
-        off_b += 1; if off_b == b.factor_len { off_b = 0; }
+        if char_a != char_b {
+            stats.cmp_chars += (k + 1) as u64;
+            return (k, char_a.cmp(&char_b));
+        }
+        off_a += 1;
+        if off_a == a.factor_len {
+            off_a = 0;
+        } // wrap inside the factor
+        off_b += 1;
+        if off_b == b.factor_len {
+            off_b = 0;
+        }
     }
     stats.cmp_chars += max_len as u64;
     (max_len, Ordering::Equal)
@@ -105,8 +153,20 @@ fn compare_conjugates(text: &[u8], text_len: usize, a: &Conjugate, b: &Conjugate
 
 /// The conjugate that entry `id` stands for, in the window starting at `window_start`
 /// whose factors are `factors`. (id -> absolute position -> the factor containing it.)
-fn conjugate_of_entry(text_len: usize, id: u32, factors: &VecDeque<Factor>, window_start: usize) -> Conjugate {
-    conjugate_at(window_start + wrap_index(id as usize + text_len - wrap_index(window_start, text_len), text_len), factors)
+fn conjugate_of_entry(
+    text_len: usize,
+    id: u32,
+    factors: &VecDeque<Factor>,
+    window_start: usize,
+) -> Conjugate {
+    conjugate_at(
+        window_start
+            + wrap_index(
+                id as usize + text_len - wrap_index(window_start, text_len),
+                text_len,
+            ),
+        factors,
+    )
 }
 
 /// The conjugate that starts at absolute position `abs`: finds the factor containing `abs`
@@ -114,19 +174,39 @@ fn conjugate_of_entry(text_len: usize, id: u32, factors: &VecDeque<Factor>, wind
 #[inline(always)]
 fn conjugate_at(abs: usize, factors: &VecDeque<Factor>) -> Conjugate {
     let f = factors[factors.partition_point(|f| f.start <= abs) - 1];
-    Conjugate { factor_start: f.start, factor_len: f.len, offset: abs - f.start }
+    Conjugate {
+        factor_start: f.start,
+        factor_len: f.len,
+        offset: abs - f.start,
+    }
 }
 
 /// Same as `conjugate_of_entry` but for the window BEFORE this rotation (it started at
 /// `old_window_start`). `factors` is already the NEW factor list, so the old factors are rebuilt from
 /// `removed` (the old factors that no longer exist): if the position lies inside a removed factor,
 /// that factor is the old one; otherwise the position was not touched and the new list is right.
-fn conjugate_of_entry_before_rotation(text_len: usize, old_window_start: usize, id: u32, removed: &[Factor], factors: &VecDeque<Factor>) -> Conjugate {
-    let abs = old_window_start + wrap_index(id as usize + text_len - wrap_index(old_window_start, text_len), text_len);
+fn conjugate_of_entry_before_rotation(
+    text_len: usize,
+    old_window_start: usize,
+    id: u32,
+    removed: &[Factor],
+    factors: &VecDeque<Factor>,
+) -> Conjugate {
+    let abs = old_window_start
+        + wrap_index(
+            id as usize + text_len - wrap_index(old_window_start, text_len),
+            text_len,
+        );
     let k = removed.partition_point(|f| f.start <= abs);
     if k > 0 {
         let f = removed[k - 1];
-        if abs < f.start + f.len { return Conjugate { factor_start: f.start, factor_len: f.len, offset: abs - f.start }; }
+        if abs < f.start + f.len {
+            return Conjugate {
+                factor_start: f.start,
+                factor_len: f.len,
+                offset: abs - f.start,
+            };
+        }
     }
     conjugate_at(abs, factors) // abs is in [old_window_start+1, old_window_start+text_len): same factor in old and new window
 }
@@ -138,8 +218,13 @@ fn conjugate_of_entry_before_rotation(text_len: usize, old_window_start: usize, 
 /// decides; if there is none, the shorter one is smaller.
 fn factor_is_smaller(text: &[u8], text_len: usize, f: Factor, g: Factor) -> bool {
     for k in 0..f.len.min(g.len) {
-        let (cf, cg) = (text[wrap_index(f.start + k, text_len)], text[wrap_index(g.start + k, text_len)]);
-        if cf != cg { return cf < cg; }
+        let (cf, cg) = (
+            text[wrap_index(f.start + k, text_len)],
+            text[wrap_index(g.start + k, text_len)],
+        );
+        if cf != cg {
+            return cf < cg;
+        }
     }
     f.len < g.len
 }
@@ -152,22 +237,34 @@ fn range_difference(a: &[(usize, usize)], b: &[(usize, usize)]) -> Vec<(usize, u
     for &(lo, hi) in a {
         let mut cur = lo; // everything in [lo, cur) has been handled
         for &(b_lo, b_hi) in b {
-            if b_hi <= cur || b_lo >= hi { continue; }
-            if b_lo > cur { out.push((cur, b_lo)); }
+            if b_hi <= cur || b_lo >= hi {
+                continue;
+            }
+            if b_lo > cur {
+                out.push((cur, b_lo));
+            }
             cur = cur.max(b_hi);
-            if cur >= hi { break; }
+            if cur >= hi {
+                break;
+            }
         }
-        if cur < hi { out.push((cur, hi)); }
+        if cur < hi {
+            out.push((cur, hi));
+        }
     }
     out
 }
 /// Positions that are in both `a` and `b`.
 fn range_intersection(a: &[(usize, usize)], b: &[(usize, usize)]) -> Vec<(usize, usize)> {
     let mut out = Vec::new();
-    for &(a_lo, a_hi) in a { for &(b_lo, b_hi) in b {
-        let (lo, hi) = (a_lo.max(b_lo), a_hi.min(b_hi));
-        if lo < hi { out.push((lo, hi)); }
-    } }
+    for &(a_lo, a_hi) in a {
+        for &(b_lo, b_hi) in b {
+            let (lo, hi) = (a_lo.max(b_lo), a_hi.min(b_hi));
+            if lo < hi {
+                out.push((lo, hi));
+            }
+        }
+    }
     out.sort();
     out
 }
@@ -195,33 +292,62 @@ type Slot = (usize, usize);
 struct SortedEntries {
     chunks: Vec<Vec<Entry>>,
     len: usize,
-    letter_changes: usize,    // number of adjacent pairs with different letters; runs = this + 1
-    lcp_histogram: Vec<u32>,  // lcp_histogram[v] = how many adjacent pairs have LCP exactly v
-    max_lcp: usize,           // largest v with lcp_histogram[v] > 0
+    letter_changes: usize, // number of adjacent pairs with different letters; runs = this + 1
+    lcp_histogram: Vec<u32>, // lcp_histogram[v] = how many adjacent pairs have LCP exactly v
+    max_lcp: usize,        // largest v with lcp_histogram[v] > 0
 }
 
 impl SortedEntries {
     fn new(text_len: usize) -> Self {
-        SortedEntries { chunks: vec![], len: 0, letter_changes: 0, lcp_histogram: vec![0; 2 * text_len + 2], max_lcp: 0 }
+        SortedEntries {
+            chunks: vec![],
+            len: 0,
+            letter_changes: 0,
+            lcp_histogram: vec![0; 2 * text_len + 2],
+            max_lcp: 0,
+        }
     }
-    fn runs(&self) -> usize { if self.len == 0 { 0 } else { self.letter_changes + 1 } }
-    fn at(&self, slot: Slot) -> Entry { self.chunks[slot.0][slot.1] }
+    fn runs(&self) -> usize {
+        if self.len == 0 {
+            0
+        } else {
+            self.letter_changes + 1
+        }
+    }
+    fn at(&self, slot: Slot) -> Entry {
+        self.chunks[slot.0][slot.1]
+    }
     fn histogram_add(&mut self, v: u32) {
         let v = v as usize;
-        if v >= self.lcp_histogram.len() { self.lcp_histogram.resize(v + 1, 0); }
+        if v >= self.lcp_histogram.len() {
+            self.lcp_histogram.resize(v + 1, 0);
+        }
         self.lcp_histogram[v] += 1;
-        if v > self.max_lcp { self.max_lcp = v; }
+        if v > self.max_lcp {
+            self.max_lcp = v;
+        }
     }
     fn histogram_remove(&mut self, v: u32) {
         self.lcp_histogram[v as usize] -= 1;
-        while self.max_lcp > 0 && self.lcp_histogram[self.max_lcp] == 0 { self.max_lcp -= 1; }
+        while self.max_lcp > 0 && self.lcp_histogram[self.max_lcp] == 0 {
+            self.max_lcp -= 1;
+        }
     }
     /// Builds the list from entries that are already sorted. `lcps[j]` = LCP of entries j and j+1.
     fn from_sorted(text_len: usize, entries: &[(u32, u8)], lcps: &[u32]) -> Self {
         let mut list = SortedEntries::new(text_len);
-        let all: Vec<Entry> = entries.iter().enumerate()
-            .map(|(j, &(id, letter))| Entry { id, letter, lcp_next: if j + 1 < entries.len() { lcps[j] } else { 0 } }).collect();
-        for &l in lcps { list.histogram_add(l); }
+        let all: Vec<Entry> = entries
+            .iter()
+            .enumerate()
+            .map(|(j, &(id, letter))| Entry {
+                id,
+                letter,
+                lcp_next: if j + 1 < entries.len() { lcps[j] } else { 0 },
+            })
+            .collect();
+        for &l in lcps {
+            list.histogram_add(l);
+        }
         list.letter_changes = entries.windows(2).filter(|w| w[0].1 != w[1].1).count();
         list.len = all.len();
         list.chunks = all.chunks(CHUNK).map(|c| c.to_vec()).collect();
@@ -234,24 +360,44 @@ impl SortedEntries {
         let (mut lo, mut hi) = (0, self.chunks.len());
         while lo < hi {
             let mid = (lo + hi) / 2;
-            if compare_to_target(self.chunks[mid][0].id) == Ordering::Less { lo = mid + 1; } else { hi = mid; }
+            if compare_to_target(self.chunks[mid][0].id) == Ordering::Less {
+                lo = mid + 1;
+            } else {
+                hi = mid;
+            }
         }
-        if lo == 0 { return (0, 0); }
+        if lo == 0 {
+            return (0, 0);
+        }
         let chunk = &self.chunks[lo - 1];
         let (mut a, mut b) = (1, chunk.len());
         while a < b {
             let mid = (a + b) / 2;
-            if compare_to_target(chunk[mid].id) == Ordering::Less { a = mid + 1; } else { b = mid; }
+            if compare_to_target(chunk[mid].id) == Ordering::Less {
+                a = mid + 1;
+            } else {
+                b = mid;
+            }
         }
         (lo - 1, a)
     }
     /// The slots just before and just after the gap in front of `slot` (None at the list ends).
     /// `slot.1` may equal the chunk length, meaning "after the last element of the chunk".
     fn neighbours_of_gap(&self, slot: Slot) -> (Option<Slot>, Option<Slot>) {
-        let prev = if slot.1 > 0 { Some((slot.0, slot.1 - 1)) }
-            else if slot.0 > 0 { Some((slot.0 - 1, self.chunks[slot.0 - 1].len() - 1)) } else { None };
-        let next = if slot.1 < self.chunks[slot.0].len() { Some(slot) }
-            else if slot.0 + 1 < self.chunks.len() { Some((slot.0 + 1, 0)) } else { None };
+        let prev = if slot.1 > 0 {
+            Some((slot.0, slot.1 - 1))
+        } else if slot.0 > 0 {
+            Some((slot.0 - 1, self.chunks[slot.0 - 1].len() - 1))
+        } else {
+            None
+        };
+        let next = if slot.1 < self.chunks[slot.0].len() {
+            Some(slot)
+        } else if slot.0 + 1 < self.chunks.len() {
+            Some((slot.0 + 1, 0))
+        } else {
+            None
+        };
         (prev, next)
     }
     /// Removes the entry at `slot` and repairs `letter_changes`, the neighbour LCP and the histogram.
@@ -260,61 +406,104 @@ impl SortedEntries {
     fn remove(&mut self, slot: Slot) {
         let removed = self.at(slot);
         let prev = self.neighbours_of_gap(slot).0;
-        let next = if slot.1 + 1 < self.chunks[slot.0].len() { Some((slot.0, slot.1 + 1)) }
-            else if slot.0 + 1 < self.chunks.len() { Some((slot.0 + 1, 0)) } else { None };
+        let next = if slot.1 + 1 < self.chunks[slot.0].len() {
+            Some((slot.0, slot.1 + 1))
+        } else if slot.0 + 1 < self.chunks.len() {
+            Some((slot.0 + 1, 0))
+        } else {
+            None
+        };
         match (prev, next) {
             (Some(prev_slot), Some(next_slot)) => {
                 let (prev_entry, next_entry) = (self.at(prev_slot), self.at(next_slot));
-                if prev_entry.letter != removed.letter { self.letter_changes -= 1; }      // pair (prev, removed) disappears
-                if removed.letter != next_entry.letter { self.letter_changes -= 1; }      // pair (removed, next) disappears
-                if prev_entry.letter != next_entry.letter { self.letter_changes += 1; }   // pair (prev, next) appears
+                if prev_entry.letter != removed.letter {
+                    self.letter_changes -= 1;
+                } // pair (prev, removed) disappears
+                if removed.letter != next_entry.letter {
+                    self.letter_changes -= 1;
+                } // pair (removed, next) disappears
+                if prev_entry.letter != next_entry.letter {
+                    self.letter_changes += 1;
+                } // pair (prev, next) appears
                 let joined_lcp = prev_entry.lcp_next.min(removed.lcp_next);
-                self.histogram_remove(prev_entry.lcp_next); self.histogram_remove(removed.lcp_next); self.histogram_add(joined_lcp);
+                self.histogram_remove(prev_entry.lcp_next);
+                self.histogram_remove(removed.lcp_next);
+                self.histogram_add(joined_lcp);
                 self.chunks[prev_slot.0][prev_slot.1].lcp_next = joined_lcp;
             }
-            (Some(prev_slot), None) => {   // removing the last entry
+            (Some(prev_slot), None) => {
+                // removing the last entry
                 let prev_entry = self.at(prev_slot);
-                if prev_entry.letter != removed.letter { self.letter_changes -= 1; }
+                if prev_entry.letter != removed.letter {
+                    self.letter_changes -= 1;
+                }
                 self.histogram_remove(prev_entry.lcp_next);
                 self.chunks[prev_slot.0][prev_slot.1].lcp_next = 0;
             }
-            (None, Some(next_slot)) => {   // removing the first entry
-                if removed.letter != self.at(next_slot).letter { self.letter_changes -= 1; }
+            (None, Some(next_slot)) => {
+                // removing the first entry
+                if removed.letter != self.at(next_slot).letter {
+                    self.letter_changes -= 1;
+                }
                 self.histogram_remove(removed.lcp_next);
             }
             (None, None) => {}
         }
         self.chunks[slot.0].remove(slot.1);
-        if self.chunks[slot.0].is_empty() { self.chunks.remove(slot.0); }
+        if self.chunks[slot.0].is_empty() {
+            self.chunks.remove(slot.0);
+        }
         self.len -= 1;
     }
     /// Inserts a new entry in front of `slot`. The caller passes the LCP with the previous and the
     /// next entry (they were computed while comparing during the binary search).
     fn insert(&mut self, slot: Slot, id: u32, letter: u8, lcp_with_prev: u32, lcp_with_next: u32) {
         if self.chunks.is_empty() {
-            self.chunks.push(vec![Entry { id, letter, lcp_next: 0 }]);
+            self.chunks.push(vec![Entry {
+                id,
+                letter,
+                lcp_next: 0,
+            }]);
             self.len = 1;
             return;
         }
         let (prev, next) = self.neighbours_of_gap(slot);
-        let mut new_entry = Entry { id, letter, lcp_next: 0 };
+        let mut new_entry = Entry {
+            id,
+            letter,
+            lcp_next: 0,
+        };
         match (prev, next) {
             (Some(prev_slot), Some(next_slot)) => {
                 let (prev_entry, next_entry) = (self.at(prev_slot), self.at(next_slot));
-                if prev_entry.letter != letter { self.letter_changes += 1; }
-                if letter != next_entry.letter { self.letter_changes += 1; }
-                if prev_entry.letter != next_entry.letter { self.letter_changes -= 1; }  // the old pair (prev, next) is split
-                self.histogram_remove(prev_entry.lcp_next); self.histogram_add(lcp_with_prev); self.histogram_add(lcp_with_next);
+                if prev_entry.letter != letter {
+                    self.letter_changes += 1;
+                }
+                if letter != next_entry.letter {
+                    self.letter_changes += 1;
+                }
+                if prev_entry.letter != next_entry.letter {
+                    self.letter_changes -= 1;
+                } // the old pair (prev, next) is split
+                self.histogram_remove(prev_entry.lcp_next);
+                self.histogram_add(lcp_with_prev);
+                self.histogram_add(lcp_with_next);
                 self.chunks[prev_slot.0][prev_slot.1].lcp_next = lcp_with_prev;
                 new_entry.lcp_next = lcp_with_next;
             }
-            (Some(prev_slot), None) => {   // inserting at the end
-                if self.at(prev_slot).letter != letter { self.letter_changes += 1; }
+            (Some(prev_slot), None) => {
+                // inserting at the end
+                if self.at(prev_slot).letter != letter {
+                    self.letter_changes += 1;
+                }
                 self.histogram_add(lcp_with_prev);
                 self.chunks[prev_slot.0][prev_slot.1].lcp_next = lcp_with_prev;
             }
-            (None, Some(next_slot)) => {   // inserting at the front
-                if letter != self.at(next_slot).letter { self.letter_changes += 1; }
+            (None, Some(next_slot)) => {
+                // inserting at the front
+                if letter != self.at(next_slot).letter {
+                    self.letter_changes += 1;
+                }
                 self.histogram_add(lcp_with_next);
                 new_entry.lcp_next = lcp_with_next;
             }
@@ -322,7 +511,8 @@ impl SortedEntries {
         }
         self.chunks[slot.0].insert(slot.1, new_entry);
         self.len += 1;
-        if self.chunks[slot.0].len() > 2 * CHUNK {   // chunk too big: split in two halves
+        if self.chunks[slot.0].len() > 2 * CHUNK {
+            // chunk too big: split in two halves
             let second_half = self.chunks[slot.0].split_off(CHUNK);
             self.chunks.insert(slot.0 + 1, second_half);
         }
@@ -337,14 +527,14 @@ impl SortedEntries {
 struct RotationSweep<'a> {
     text: &'a [u8],
     text_len: usize,
-    window_start: usize,           // the current conjugate is text[window_start..] + text[..window_start]
-    prefix_hash: Vec<u64>,         // prefix_hash[k] = polynomial hash of the first k chars of text·text·text
-    base_power: Vec<u64>,          // base_power[k] = HASH_BASE^k mod HASH_MOD
-    factors: VecDeque<Factor>,     // Lyndon factors of the current conjugate, left to right, tiling [window_start, window_start+text_len)
-    sorted: SortedEntries,         // the entries, in omega-sorted order
-    pending: Vec<u32>,             // ids that must be inserted but have been postponed (may hold stale ids, see is_pending)
-    is_pending: Vec<bool>,         // is_pending[id]: the id is really pending
-    pending_count: usize,          // number of ids with is_pending == true
+    window_start: usize, // the current conjugate is text[window_start..] + text[..window_start]
+    prefix_hash: Vec<u64>, // prefix_hash[k] = polynomial hash of the first k chars of text·text·text
+    base_power: Vec<u64>,  // base_power[k] = HASH_BASE^k mod HASH_MOD
+    factors: VecDeque<Factor>, // Lyndon factors of the current conjugate, left to right, tiling [window_start, window_start+text_len)
+    sorted: SortedEntries,     // the entries, in omega-sorted order
+    pending: Vec<u32>, // ids that must be inserted but have been postponed (may hold stale ids, see is_pending)
+    is_pending: Vec<bool>, // is_pending[id]: the id is really pending
+    pending_count: usize, // number of ids with is_pending == true
     stats: ChainStats,
 }
 
@@ -357,44 +547,106 @@ impl<'a> RotationSweep<'a> {
         let total = 3 * text_len + 2;
         let (mut prefix_hash, mut base_power) = (vec![0u64; total + 1], vec![1u64; total + 1]);
         for k in 0..total {
-            prefix_hash[k + 1] = (mul_mod(prefix_hash[k], HASH_BASE) + text[k % text_len] as u64 + 1) % HASH_MOD;
+            prefix_hash[k + 1] =
+                (mul_mod(prefix_hash[k], HASH_BASE) + text[k % text_len] as u64 + 1) % HASH_MOD;
             base_power[k + 1] = mul_mod(base_power[k], HASH_BASE);
         }
-        let mut sweep = RotationSweep { text, text_len, window_start: 0, prefix_hash, base_power,
-            factors: VecDeque::from(vec![Factor { start: 0, len: text_len }]), sorted: SortedEntries::new(text_len),
-            pending: vec![], is_pending: vec![false; text_len], pending_count: 0, stats: ChainStats::default() };
+        let mut sweep = RotationSweep {
+            text,
+            text_len,
+            window_start: 0,
+            prefix_hash,
+            base_power,
+            factors: VecDeque::from(vec![Factor {
+                start: 0,
+                len: text_len,
+            }]),
+            sorted: SortedEntries::new(text_len),
+            pending: vec![],
+            is_pending: vec![false; text_len],
+            pending_count: 0,
+            stats: ChainStats::default(),
+        };
         // (conjugate, id) of the n entries, in sorted order
         let sorted_entries: Vec<(Conjugate, u32)> = match circular_sa {
-            Some(sa) => sa.iter().map(|&p| (conjugate_of_entry(text_len, p as u32, &sweep.factors, 0), p as u32)).collect(),
-            None => {   // no suffix array given: sort the text_len rotations by comparison
-                let mut v: Vec<(Conjugate, u32)> = (0..text_len as u32).map(|p| (conjugate_of_entry(text_len, p, &sweep.factors, 0), p)).collect();
-                { let stats = &mut sweep.stats; v.sort_by(|a, b| compare_conjugates(text, text_len, &a.0, &b.0, stats).1); }
+            Some(sa) => sa
+                .iter()
+                .map(|&p| {
+                    (
+                        conjugate_of_entry(text_len, p as u32, &sweep.factors, 0),
+                        p as u32,
+                    )
+                })
+                .collect(),
+            None => {
+                // no suffix array given: sort the text_len rotations by comparison
+                let mut v: Vec<(Conjugate, u32)> = (0..text_len as u32)
+                    .map(|p| (conjugate_of_entry(text_len, p, &sweep.factors, 0), p))
+                    .collect();
+                {
+                    let stats = &mut sweep.stats;
+                    v.sort_by(|a, b| compare_conjugates(text, text_len, &a.0, &b.0, stats).1);
+                }
                 v
             }
         };
-        let lcps: Vec<u32> = (0..text_len - 1).map(|j| compare_conjugates(text, text_len, &sorted_entries[j].0, &sorted_entries[j + 1].0, &mut sweep.stats).0 as u32).collect();
-        let list: Vec<(u32, u8)> = sorted_entries.iter().map(|(conj, id)| (*id, sweep.predecessor_letter(conj))).collect();
+        let lcps: Vec<u32> = (0..text_len - 1)
+            .map(|j| {
+                compare_conjugates(
+                    text,
+                    text_len,
+                    &sorted_entries[j].0,
+                    &sorted_entries[j + 1].0,
+                    &mut sweep.stats,
+                )
+                .0 as u32
+            })
+            .collect();
+        let list: Vec<(u32, u8)> = sorted_entries
+            .iter()
+            .map(|(conj, id)| (*id, sweep.predecessor_letter(conj)))
+            .collect();
         sweep.sorted = SortedEntries::from_sorted(text_len, &list, &lcps);
         sweep
     }
 
     /// Hash of the text of one factor occurrence (difference of two prefix hashes).
     fn factor_hash(&self, f: Factor) -> u64 {
-        (self.prefix_hash[f.start + f.len] + HASH_MOD - mul_mod(self.prefix_hash[f.start], self.base_power[f.len])) % HASH_MOD
+        (self.prefix_hash[f.start + f.len] + HASH_MOD
+            - mul_mod(self.prefix_hash[f.start], self.base_power[f.len]))
+            % HASH_MOD
     }
     /// Are the two factor occurrences the same string? (same length and same hash; no char check)
-    fn same_factor(&self, f: Factor, g: Factor) -> bool { f.len == g.len && self.factor_hash(f) == self.factor_hash(g) }
-    fn runs(&self) -> usize { self.sorted.runs() }
+    fn same_factor(&self, f: Factor, g: Factor) -> bool {
+        f.len == g.len && self.factor_hash(f) == self.factor_hash(g)
+    }
+    fn runs(&self) -> usize {
+        self.sorted.runs()
+    }
     /// The BBWT letter of a conjugate: the character just before it inside its factor
     /// (cyclically: for offset 0 it is the last character of the factor).
     fn predecessor_letter(&self, c: &Conjugate) -> u8 {
-        self.text[wrap_index(if c.offset == 0 { c.factor_start + c.factor_len - 1 } else { c.factor_start + c.offset - 1 }, self.text_len)]
+        self.text[wrap_index(
+            if c.offset == 0 {
+                c.factor_start + c.factor_len - 1
+            } else {
+                c.factor_start + c.offset - 1
+            },
+            self.text_len,
+        )]
     }
     fn mark_pending(&mut self, id: usize) {
-        if !self.is_pending[id] { self.is_pending[id] = true; self.pending_count += 1; self.pending.push(id as u32); }
+        if !self.is_pending[id] {
+            self.is_pending[id] = true;
+            self.pending_count += 1;
+            self.pending.push(id as u32);
+        }
     }
     fn unmark_pending(&mut self, id: usize) {
-        if self.is_pending[id] { self.is_pending[id] = false; self.pending_count -= 1; }
+        if self.is_pending[id] {
+            self.is_pending[id] = false;
+            self.pending_count -= 1;
+        }
     }
 
     /// Inserts entry `id` into the sorted list (current factors): binary search for its place,
@@ -402,26 +654,63 @@ impl<'a> RotationSweep<'a> {
     fn insert_entry(&mut self, id: u32) {
         let (text_len, window_start, text) = (self.text_len, self.window_start, self.text);
         let conj = conjugate_of_entry(text_len, id, &self.factors, window_start);
-        let slot = { let (factors, stats) = (&self.factors, &mut self.stats);
-            self.sorted.seek(|other_id| compare_conjugates(text, text_len, &conjugate_of_entry(text_len, other_id, factors, window_start), &conj, stats).1) };
+        let slot = {
+            let (factors, stats) = (&self.factors, &mut self.stats);
+            self.sorted.seek(|other_id| {
+                compare_conjugates(
+                    text,
+                    text_len,
+                    &conjugate_of_entry(text_len, other_id, factors, window_start),
+                    &conj,
+                    stats,
+                )
+                .1
+            })
+        };
         let letter = self.predecessor_letter(&conj);
-        if self.sorted.chunks.is_empty() { self.sorted.insert(slot, id, letter, 0, 0); return; }
+        if self.sorted.chunks.is_empty() {
+            self.sorted.insert(slot, id, letter, 0, 0);
+            return;
+        }
         let (prev, next) = self.sorted.neighbours_of_gap(slot);
-        let lcp_with_prev = match prev { Some(prev_slot) => {
-            let prev_conj = conjugate_of_entry(text_len, self.sorted.at(prev_slot).id, &self.factors, window_start);
-            compare_conjugates(text, text_len, &prev_conj, &conj, &mut self.stats).0 as u32 } None => 0 };
-        let lcp_with_next = match next { Some(next_slot) => {
-            let next_conj = conjugate_of_entry(text_len, self.sorted.at(next_slot).id, &self.factors, window_start);
-            compare_conjugates(text, text_len, &conj, &next_conj, &mut self.stats).0 as u32 } None => 0 };
-        self.sorted.insert(slot, id, letter, lcp_with_prev, lcp_with_next);
+        let lcp_with_prev = match prev {
+            Some(prev_slot) => {
+                let prev_conj = conjugate_of_entry(
+                    text_len,
+                    self.sorted.at(prev_slot).id,
+                    &self.factors,
+                    window_start,
+                );
+                compare_conjugates(text, text_len, &prev_conj, &conj, &mut self.stats).0 as u32
+            }
+            None => 0,
+        };
+        let lcp_with_next = match next {
+            Some(next_slot) => {
+                let next_conj = conjugate_of_entry(
+                    text_len,
+                    self.sorted.at(next_slot).id,
+                    &self.factors,
+                    window_start,
+                );
+                compare_conjugates(text, text_len, &conj, &next_conj, &mut self.stats).0 as u32
+            }
+            None => 0,
+        };
+        self.sorted
+            .insert(slot, id, letter, lcp_with_prev, lcp_with_next);
     }
 
     /// Inserts every pending id (skipping ids that were cancelled in the meantime).
     fn flush_pending(&mut self) {
-        if self.pending_count == 0 { return; }
+        if self.pending_count == 0 {
+            return;
+        }
         self.stats.flushes += 1;
         for id in std::mem::take(&mut self.pending) {
-            if !self.is_pending[id as usize] { continue; }
+            if !self.is_pending[id as usize] {
+                continue;
+            }
             self.is_pending[id as usize] = false;
             self.insert_entry(id);
             self.stats.phys_ins += 1;
@@ -438,9 +727,22 @@ impl<'a> RotationSweep<'a> {
         let (mut out, mut i) = (Vec::new(), 0);
         while i < len {
             let (mut j, mut k) = (i + 1, i);
-            while j < len && ch(k) <= ch(j) { if ch(k) < ch(j) { k = i; } else { k += 1; } j += 1; }
+            while j < len && ch(k) <= ch(j) {
+                if ch(k) < ch(j) {
+                    k = i;
+                } else {
+                    k += 1;
+                }
+                j += 1;
+            }
             let piece_len = j - k;
-            while i <= k { out.push(Factor { start: start + i, len: piece_len }); i += piece_len; }
+            while i <= k {
+                out.push(Factor {
+                    start: start + i,
+                    len: piece_len,
+                });
+                i += piece_len;
+            }
         }
         out
     }
@@ -449,13 +751,46 @@ impl<'a> RotationSweep<'a> {
     /// (the list has not been modified yet; only `factors` has). `removed` = old factors that
     /// vanished. The comparison treats `id` itself as Equal, so the search stops on it and never
     /// compares an entry with itself (that would cost a whole factor length).
-    fn locate_entry_before_rotation(&mut self, old_window_start: usize, id: usize, removed: &[Factor]) -> Slot {
+    fn locate_entry_before_rotation(
+        &mut self,
+        old_window_start: usize,
+        id: usize,
+        removed: &[Factor],
+    ) -> Slot {
         let (text_len, text) = (self.text_len, self.text);
-        let conj = conjugate_of_entry_before_rotation(text_len, old_window_start, id as u32, removed, &self.factors);
+        let conj = conjugate_of_entry_before_rotation(
+            text_len,
+            old_window_start,
+            id as u32,
+            removed,
+            &self.factors,
+        );
         let (factors, stats) = (&self.factors, &mut self.stats);
-        let (chunk, offset) = self.sorted.seek(|other| if other == id as u32 { Ordering::Equal }
-            else { compare_conjugates(text, text_len, &conjugate_of_entry_before_rotation(text_len, old_window_start, other, removed, factors), &conj, stats).1 });
-        let slot = if offset == self.sorted.chunks[chunk].len() { (chunk + 1, 0) } else { (chunk, offset) };
+        let (chunk, offset) = self.sorted.seek(|other| {
+            if other == id as u32 {
+                Ordering::Equal
+            } else {
+                compare_conjugates(
+                    text,
+                    text_len,
+                    &conjugate_of_entry_before_rotation(
+                        text_len,
+                        old_window_start,
+                        other,
+                        removed,
+                        factors,
+                    ),
+                    &conj,
+                    stats,
+                )
+                .1
+            }
+        });
+        let slot = if offset == self.sorted.chunks[chunk].len() {
+            (chunk + 1, 0)
+        } else {
+            (chunk, offset)
+        };
         assert!(self.sorted.at(slot).id == id as u32, "entry not found");
         slot
     }
@@ -476,36 +811,62 @@ impl<'a> RotationSweep<'a> {
             first_block_survives = first_block_has_copy && the second copy was not merged away
         */
         // Does the first block have a second copy? (the first factor equals the second one)
-        let first_block_has_copy = self.factors.len() > 1 && self.same_factor(self.factors[0], self.factors[1]);
+        let first_block_has_copy =
+            self.factors.len() > 1 && self.same_factor(self.factors[0], self.factors[1]);
         let first = self.factors.pop_front().unwrap();
-        let mut removed: Vec<Factor> = vec![first];              // old factors that no longer exist
-        let mut added: Vec<Factor> = Vec::new();                 // new factors that did not exist
+        let mut removed: Vec<Factor> = vec![first]; // old factors that no longer exist
+        let mut added: Vec<Factor> = Vec::new(); // new factors that did not exist
         if first.len > 1 {
             // the rest of the first factor (without its first char) factorizes into new factors
             let pieces = self.lyndon_factors_of(first.start + 1, first.len - 1);
-            for &piece in pieces.iter().rev() { self.factors.push_front(piece); }
+            for &piece in pieces.iter().rev() {
+                self.factors.push_front(piece);
+            }
             added.extend(pieces);
         }
         // the moved char becomes a new one-character factor at the back (absolute position is old_start + text_len)
-        let moved_char = Factor { start: old_start + text_len, len: 1 };
+        let moved_char = Factor {
+            start: old_start + text_len,
+            len: 1,
+        };
         self.factors.push_back(moved_char);
         added.push(moved_char);
         // merge at the back while the second-to-last factor is smaller than the last one
         while self.factors.len() >= 2 {
-            let (last, before_last) = (self.factors[self.factors.len() - 1], self.factors[self.factors.len() - 2]);
-            if !factor_is_smaller(self.text, text_len, before_last, last) { break; }
-            self.factors.pop_back(); self.factors.pop_back();
+            let (last, before_last) = (
+                self.factors[self.factors.len() - 1],
+                self.factors[self.factors.len() - 2],
+            );
+            if !factor_is_smaller(self.text, text_len, before_last, last) {
+                break;
+            }
+            self.factors.pop_back();
+            self.factors.pop_back();
             for f in [last, before_last] {
                 // a factor created in this same step and merged away again just cancels out
-                if let Some(k) = added.iter().position(|&x| x == f) { added.swap_remove(k); } else { removed.push(f); }
+                if let Some(k) = added.iter().position(|&x| x == f) {
+                    added.swap_remove(k);
+                } else {
+                    removed.push(f);
+                }
             }
-            let merged = Factor { start: before_last.start, len: before_last.len + last.len };
-            self.factors.push_back(merged); added.push(merged);
+            let merged = Factor {
+                start: before_last.start,
+                len: before_last.len + last.len,
+            };
+            self.factors.push_back(merged);
+            added.push(merged);
         }
-        removed.sort(); added.sort();
+        removed.sort();
+        added.sort();
         // the first block survives (as a factor value) if it had a second copy and that copy was not merged away
         let first_block_survives = first_block_has_copy
-            && removed.binary_search(&Factor { start: first.start + first.len, len: first.len }).is_err();
+            && removed
+                .binary_search(&Factor {
+                    start: first.start + first.len,
+                    len: first.len,
+                })
+                .is_err();
 
         /* STEP B
             dead factors = the last occurrence of each removed factor, equal factors form a "block". entries refer to the last occurrence
@@ -520,13 +881,17 @@ impl<'a> RotationSweep<'a> {
         while k > 0 {
             let block_owner = removed[k - 1];
             k -= 1;
-            while k > 0 && self.same_factor(removed[k - 1], block_owner) { k -= 1; }
-            if !(first_block_survives && self.same_factor(block_owner, first)) { dead_factors.push(block_owner); }
+            while k > 0 && self.same_factor(removed[k - 1], block_owner) {
+                k -= 1;
+            }
+            if !(first_block_survives && self.same_factor(block_owner, first)) {
+                dead_factors.push(block_owner);
+            }
         }
         // Growth: the new back factor equals the factor before it, so it only extends that block
         // (the entries of the block must move from the old last occurrence to the new one).
         let back = *self.factors.back().unwrap();
-        let mut growth: Option<(Factor, Factor)> = None;   // (old last occurrence, new last occurrence)
+        let mut growth: Option<(Factor, Factor)> = None; // (old last occurrence, new last occurrence)
         if self.factors.len() >= 2 {
             let before_back = self.factors[self.factors.len() - 2];
             if added.binary_search(&before_back).is_err() && self.same_factor(before_back, back) {
@@ -539,7 +904,12 @@ impl<'a> RotationSweep<'a> {
         let mut k = 0;
         while k < added.len() {
             let mut j = k;
-            while j + 1 < added.len() && added[j + 1].start == added[j].start + added[j].len && self.same_factor(added[j + 1], added[k]) { j += 1; }
+            while j + 1 < added.len()
+                && added[j + 1].start == added[j].start + added[j].len
+                && self.same_factor(added[j + 1], added[k])
+            {
+                j += 1;
+            }
             born_factors.push(added[j]);
             k = j + 1;
         }
@@ -551,15 +921,25 @@ impl<'a> RotationSweep<'a> {
             new ranges = positions of entries of born factors; insert
             kept ranges = entries that "survived" the rotation, their place in the order may change
         */
-        let mut old_ranges: Vec<(usize, usize)> = Vec::new();   // positions that were entries of dead factors
+        let mut old_ranges: Vec<(usize, usize)> = Vec::new(); // positions that were entries of dead factors
         for f in &dead_factors {
-            if f.start == old_start { old_ranges.push((old_start + text_len, old_start + text_len + 1)); if f.len > 1 { old_ranges.push((old_start + 1, old_start + f.len)); } }
-            else { old_ranges.push((f.start, f.start + f.len)); }
+            if f.start == old_start {
+                old_ranges.push((old_start + text_len, old_start + text_len + 1));
+                if f.len > 1 {
+                    old_ranges.push((old_start + 1, old_start + f.len));
+                }
+            } else {
+                old_ranges.push((f.start, f.start + f.len));
+            }
         }
-        let mut new_ranges: Vec<(usize, usize)> = born_factors.iter().map(|f| (f.start, f.start + f.len)).collect();   // positions that must be entries now
-        old_ranges.sort(); new_ranges.sort();
-        let dead_ranges = range_difference(&old_ranges, &new_ranges);   // entries to delete for good
-        let born_ranges = range_difference(&new_ranges, &old_ranges);   // entries to insert
+        let mut new_ranges: Vec<(usize, usize)> = born_factors
+            .iter()
+            .map(|f| (f.start, f.start + f.len))
+            .collect(); // positions that must be entries now
+        old_ranges.sort();
+        new_ranges.sort();
+        let dead_ranges = range_difference(&old_ranges, &new_ranges); // entries to delete for good
+        let born_ranges = range_difference(&new_ranges, &old_ranges); // entries to insert
         let kept_ranges = range_intersection(&old_ranges, &new_ranges); // entries that exist before and after, with a changed word
 
         /* STEP D
@@ -573,18 +953,32 @@ impl<'a> RotationSweep<'a> {
         */
         let max_lcp = self.sorted.max_lcp;
         self.stats.lmax_sum += max_lcp as u64;
-        let rename_old_start = |p: usize| if p == old_start { old_start + text_len } else { p };
+        let rename_old_start = |p: usize| {
+            if p == old_start {
+                old_start + text_len
+            } else {
+                p
+            }
+        };
         let mut candidates: Vec<usize> = Vec::new();
         for f in &dead_factors {
-            for p in (f.start + f.len).saturating_sub(max_lcp).max(f.start)..f.start + f.len { candidates.push(rename_old_start(p)); }
+            for p in (f.start + f.len).saturating_sub(max_lcp).max(f.start)..f.start + f.len {
+                candidates.push(rename_old_start(p));
+            }
             candidates.push(rename_old_start(f.start));
         }
         for f in &born_factors {
-            for p in (f.start + f.len).saturating_sub(max_lcp).max(f.start)..f.start + f.len { candidates.push(p); }
+            for p in (f.start + f.len).saturating_sub(max_lcp).max(f.start)..f.start + f.len {
+                candidates.push(p);
+            }
             candidates.push(f.start);
         }
-        candidates.sort_unstable(); candidates.dedup();
-        let risky: Vec<usize> = candidates.into_iter().filter(|&p| range_contains(&kept_ranges, p)).collect();
+        candidates.sort_unstable();
+        candidates.dedup();
+        let risky: Vec<usize> = candidates
+            .into_iter()
+            .filter(|&p| range_contains(&kept_ranges, p))
+            .collect();
         self.stats.risky += risky.len() as u64;
 
         /* STEP E
@@ -592,30 +986,61 @@ impl<'a> RotationSweep<'a> {
             mark the born entries as pending (they will be inserted later)
             if a block grows at the back, change its entries IDs (rename) to the new last occurrence
         */
-        let mut to_delete: Vec<(usize, bool)> = Vec::new();   // (id, must be re-inserted afterwards?)
-        for &(lo, hi) in &dead_ranges { for p in lo..hi { to_delete.push((p % text_len, false)); } }
+        let mut to_delete: Vec<(usize, bool)> = Vec::new(); // (id, must be re-inserted afterwards?)
+        for &(lo, hi) in &dead_ranges {
+            for p in lo..hi {
+                to_delete.push((p % text_len, false));
+            }
+        }
         self.stats.dead += to_delete.len() as u64;
-        for &p in &risky { to_delete.push((p % text_len, true)); }
+        for &p in &risky {
+            to_delete.push((p % text_len, true));
+        }
         for &(id, requeue) in &to_delete {
-            if self.is_pending[id] { if !requeue { self.unmark_pending(id); } continue; }   // not in the list right now
+            if self.is_pending[id] {
+                if !requeue {
+                    self.unmark_pending(id);
+                }
+                continue;
+            } // not in the list right now
             let slot = self.locate_entry_before_rotation(old_start, id, &removed);
             self.sorted.remove(slot);
             self.stats.phys_del += 1;
-            if requeue { self.mark_pending(id); }
+            if requeue {
+                self.mark_pending(id);
+            }
         }
-        for &(lo, hi) in &born_ranges { for p in lo..hi { self.mark_pending(p % text_len); } self.stats.ins += (hi - lo) as u64; }
-        if let Some((old_last, new_last)) = growth {   // the block grows at the back: rename its ids (+|g|)
+        for &(lo, hi) in &born_ranges {
+            for p in lo..hi {
+                self.mark_pending(p % text_len);
+            }
+            self.stats.ins += (hi - lo) as u64;
+        }
+        if let Some((old_last, new_last)) = growth {
+            // the block grows at the back: rename its ids (+|g|)
             self.stats.growth += 1;
             // first locate every entry in the unchanged list, only then rename (no lookup sees a half-renamed list)
-            let renames: Vec<(usize, usize, Option<Slot>)> = (0..new_last.len).map(|k| {
-                let (old_id, new_id) = ((old_last.start + k) % text_len, (new_last.start + k) % text_len);
-                let slot = if self.is_pending[old_id] { None } else { Some(self.locate_entry_before_rotation(old_start, old_id, &removed)) };
-                (old_id, new_id, slot)
-            }).collect();
+            let renames: Vec<(usize, usize, Option<Slot>)> = (0..new_last.len)
+                .map(|k| {
+                    let (old_id, new_id) = (
+                        (old_last.start + k) % text_len,
+                        (new_last.start + k) % text_len,
+                    );
+                    let slot = if self.is_pending[old_id] {
+                        None
+                    } else {
+                        Some(self.locate_entry_before_rotation(old_start, old_id, &removed))
+                    };
+                    (old_id, new_id, slot)
+                })
+                .collect();
             for (old_id, new_id, slot) in renames {
                 match slot {
                     Some(s) => self.sorted.chunks[s.0][s.1].id = new_id as u32,
-                    None => { self.unmark_pending(old_id); self.mark_pending(new_id); }
+                    None => {
+                        self.unmark_pending(old_id);
+                        self.mark_pending(new_id);
+                    }
                 }
             }
         }
@@ -624,9 +1049,13 @@ impl<'a> RotationSweep<'a> {
             after step E, the list is sorted and correct, but it is missing some entries, so its runs count is a lower bound
             we must insert the pending entries.
             However, we may want to "prune" (enabled by a input flag):
-                if the current run count is already >= best, we can skip the insertions and defer them to the next rotation  
+                if the current run count is already >= best, we can skip the insertions and defer them to the next rotation
         */
-        if prune && self.pending_count > 0 && self.runs() >= best { self.stats.deferred_steps += 1; } else { self.flush_pending(); }
+        if prune && self.pending_count > 0 && self.runs() >= best {
+            self.stats.deferred_steps += 1;
+        } else {
+            self.flush_pending();
+        }
     }
 }
 
@@ -637,9 +1066,19 @@ fn lyndon_factors_plain(x: &[u8]) -> Vec<(usize, usize)> {
     let (mut out, mut i) = (Vec::new(), 0);
     while i < text_len {
         let (mut j, mut k) = (i + 1, i);
-        while j < text_len && x[k] <= x[j] { if x[k] < x[j] { k = i; } else { k += 1; } j += 1; }
+        while j < text_len && x[k] <= x[j] {
+            if x[k] < x[j] {
+                k = i;
+            } else {
+                k += 1;
+            }
+            j += 1;
+        }
         let l = j - k;
-        while i <= k { out.push((i, l)); i += l; }
+        while i <= k {
+            out.push((i, l));
+            i += l;
+        }
     }
     out
 }
@@ -651,43 +1090,88 @@ pub fn oracle_letters(x: &[u8]) -> Vec<u8> {
     let mut items: Vec<(Vec<u8>, u8)> = Vec::new();
     for (start, len) in lyndon_factors_plain(x) {
         let f = x[start..start + len].to_vec();
-        if !seen.insert(f.clone()) { continue; }
+        if !seen.insert(f.clone()) {
+            continue;
+        }
         for k in 0..len {
-            let mut c = f[k..].to_vec(); c.extend_from_slice(&f[..k]);
+            let mut c = f[k..].to_vec();
+            c.extend_from_slice(&f[..k]);
             items.push((c, f[(k + len - 1) % len]));
         }
     }
-    items.sort_by(|a, b| { let l = a.0.len() + b.0.len(); a.0.iter().cycle().take(l).cmp(b.0.iter().cycle().take(l)) });
+    items.sort_by(|a, b| {
+        let l = a.0.len() + b.0.len();
+        a.0.iter().cycle().take(l).cmp(b.0.iter().cycle().take(l))
+    });
     items.into_iter().map(|e| e.1).collect()
 }
 
 pub fn runs_of_letters(v: &[u8]) -> usize {
-    if v.is_empty() { 0 } else { 1 + v.windows(2).filter(|w| w[0] != w[1]).count() }
+    if v.is_empty() {
+        0
+    } else {
+        1 + v.windows(2).filter(|w| w[0] != w[1]).count()
+    }
 }
 
 impl<'a> RotationSweep<'a> {
-    fn letters(&self) -> Vec<u8> { self.sorted.chunks.iter().flatten().map(|e| e.letter).collect() }
+    fn letters(&self) -> Vec<u8> {
+        self.sorted
+            .chunks
+            .iter()
+            .flatten()
+            .map(|e| e.letter)
+            .collect()
+    }
     /// Checks that the sorted list is really sorted, that every stored letter/LCP/counter is right.
     fn check_invariants(&mut self) -> Result<(), String> {
         let (text_len, window_start, text) = (self.text_len, self.window_start, self.text);
         let flat: Vec<Entry> = self.sorted.chunks.iter().flatten().copied().collect();
-        if flat.len() != self.sorted.len { return Err("len".into()); }
-        if self.sorted.chunks.iter().any(|c| c.is_empty() || c.len() > 2 * CHUNK) { return Err("chunk size".into()); }
+        if flat.len() != self.sorted.len {
+            return Err("len".into());
+        }
+        if self
+            .sorted
+            .chunks
+            .iter()
+            .any(|c| c.is_empty() || c.len() > 2 * CHUNK)
+        {
+            return Err("chunk size".into());
+        }
         let mut scratch_stats = ChainStats::default();
         let mut max_lcp = 0;
         for j in 0..flat.len() {
             let conj = conjugate_of_entry(text_len, flat[j].id, &self.factors, window_start);
-            if self.predecessor_letter(&conj) != flat[j].letter { return Err(format!("letter at {}", j)); }
+            if self.predecessor_letter(&conj) != flat[j].letter {
+                return Err(format!("letter at {}", j));
+            }
             if j + 1 < flat.len() {
-                let next_conj = conjugate_of_entry(text_len, flat[j + 1].id, &self.factors, window_start);
-                let (lcp, order) = compare_conjugates(text, text_len, &conj, &next_conj, &mut scratch_stats);
-                if order != Ordering::Less { return Err(format!("order at {}", j)); }
-                if flat[j].lcp_next as usize != lcp { return Err(format!("lcp at {}", j)); }
+                let next_conj =
+                    conjugate_of_entry(text_len, flat[j + 1].id, &self.factors, window_start);
+                let (lcp, order) =
+                    compare_conjugates(text, text_len, &conj, &next_conj, &mut scratch_stats);
+                if order != Ordering::Less {
+                    return Err(format!("order at {}", j));
+                }
+                if flat[j].lcp_next as usize != lcp {
+                    return Err(format!("lcp at {}", j));
+                }
                 max_lcp = max_lcp.max(lcp);
-            } else if flat[j].lcp_next != 0 { return Err("last lcp".into()); }
+            } else if flat[j].lcp_next != 0 {
+                return Err("last lcp".into());
+            }
         }
-        if max_lcp != self.sorted.max_lcp { return Err(format!("max_lcp {} vs {}", self.sorted.max_lcp, max_lcp)); }
-        if flat.windows(2).filter(|w| w[0].letter != w[1].letter).count() != self.sorted.letter_changes { return Err("letter_changes".into()); }
+        if max_lcp != self.sorted.max_lcp {
+            return Err(format!("max_lcp {} vs {}", self.sorted.max_lcp, max_lcp));
+        }
+        if flat
+            .windows(2)
+            .filter(|w| w[0].letter != w[1].letter)
+            .count()
+            != self.sorted.letter_changes
+        {
+            return Err("letter_changes".into());
+        }
         Ok(())
     }
 }
@@ -700,29 +1184,61 @@ pub fn chain_min_runs(text: &[u8], prune: bool, verify: bool) -> (usize, usize, 
 }
 
 /// Same, with the circular suffix array of `text` (rotation starts in sorted order) supplied by the caller.
-pub fn chain_min_runs_sa(text: &[u8], circular_sa: Option<&[usize]>, prune: bool, verify: bool) -> (usize, usize, ChainStats) {
+pub fn chain_min_runs_sa(
+    text: &[u8],
+    circular_sa: Option<&[usize]>,
+    prune: bool,
+    verify: bool,
+) -> (usize, usize, ChainStats) {
     let text_len = text.len();
-    if text_len == 1 { return (0, 1, ChainStats::default()); }
+    if text_len == 1 {
+        return (0, 1, ChainStats::default());
+    }
     let mut sweep = RotationSweep::new(text, circular_sa);
     let (mut best, mut best_shift) = (sweep.runs(), 0);
-    if verify { assert_eq!(sweep.letters(), oracle_letters(text), "initial state"); }
+    if verify {
+        assert_eq!(sweep.letters(), oracle_letters(text), "initial state");
+    }
     for _ in 0..text_len - 1 {
         let best_before = best;
         sweep.rotate_left_once(prune, best);
         // the run count is exact only when nothing is pending
-        if sweep.pending_count == 0 && sweep.runs() < best { best = sweep.runs(); best_shift = sweep.window_start; }
+        if sweep.pending_count == 0 && sweep.runs() < best {
+            best = sweep.runs();
+            best_shift = sweep.window_start;
+        }
         if verify {
-            let x: Vec<u8> = (0..text_len).map(|k| text[(sweep.window_start + k) % text_len]).collect();
+            let x: Vec<u8> = (0..text_len)
+                .map(|k| text[(sweep.window_start + k) % text_len])
+                .collect();
             let expected = oracle_letters(&x);
             let true_runs = runs_of_letters(&expected);
             let mut flushed = sweep.clone();
             flushed.flush_pending();
-            flushed.check_invariants().unwrap_or_else(|e| panic!("invariant after step to {}: {}", sweep.window_start, e));
-            assert_eq!(flushed.letters(), expected, "letters differ at rotation {} (pending {})", sweep.window_start, sweep.pending_count);
+            flushed.check_invariants().unwrap_or_else(|e| {
+                panic!("invariant after step to {}: {}", sweep.window_start, e)
+            });
+            assert_eq!(
+                flushed.letters(),
+                expected,
+                "letters differ at rotation {} (pending {})",
+                sweep.window_start,
+                sweep.pending_count
+            );
             if sweep.pending_count > 0 {
-                assert!(sweep.runs() <= true_runs, "partial list has more runs than the true count");
-                assert!(true_runs >= best_before, "deferred a conjugate that beats the best: {} < {}", true_runs, best_before);
-            } else { assert_eq!(sweep.runs(), true_runs); }
+                assert!(
+                    sweep.runs() <= true_runs,
+                    "partial list has more runs than the true count"
+                );
+                assert!(
+                    true_runs >= best_before,
+                    "deferred a conjugate that beats the best: {} < {}",
+                    true_runs,
+                    best_before
+                );
+            } else {
+                assert_eq!(sweep.runs(), true_runs);
+            }
         }
     }
     sweep.flush_pending();
@@ -738,7 +1254,9 @@ pub fn optimal_bbwt_chain(input: &[u8], prune: bool) -> usize {
         return 0;
     }
     let (start, period) = shiloach(input);
-    let text: Vec<u8> = (0..period).map(|k| input[(start + k) % input.len()]).collect();
+    let text: Vec<u8> = (0..period)
+        .map(|k| input[(start + k) % input.len()])
+        .collect();
     let circular_sa = circular_suffix_array(&text); // initial order of the text_len rotations: the only suffix-array computation of the run
     chain_min_runs_sa(&text, Some(&circular_sa), prune, false).0
 }
@@ -749,7 +1267,9 @@ pub fn online_bbwt_check(input: &[u8]) -> usize {
         return 0;
     }
     let (start, period) = shiloach(input);
-    let text: Vec<u8> = (0..period).map(|k| input[(start + k) % input.len()]).collect();
+    let text: Vec<u8> = (0..period)
+        .map(|k| input[(start + k) % input.len()])
+        .collect();
     let verify = text.len() <= 400;
     let circular_sa = circular_suffix_array(&text);
     let (shift, runs, st) = chain_min_runs_sa(&text, Some(&circular_sa), true, verify);

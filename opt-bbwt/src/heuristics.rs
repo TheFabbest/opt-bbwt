@@ -1,3 +1,7 @@
+//! This module contains functions that select the conjugate of a string that shows a certain property that usually leads to a BBWT with fewer runs.
+//! These heuristics are not guaranteed to find the optimal conjugate, but they are fast and often find a good one.
+//! More details can be found in <a href="https://github.com/TheFabbest/Lyndon-Factorization-of-Conjugates">Bijective BWT: Implementing Linear-Time Lyndon Factorization of Conjugates and Discussing Open Problems</a>.
+
 pub fn most_factors(lyndon_table: &[usize], lyndon_suffix_table: &[usize]) -> usize {
     let len = lyndon_table.len();
     if len == 0 {
@@ -87,8 +91,7 @@ fn compute_repeated_factors(
 
         if s[my_factor_start..my_factor_end] == s[next_factor_start..next_factor_end] {
             repetitions_in_prefixes[i + 1] =
-                weight(my_factor_end - my_factor_start)
-                    + repetitions_in_prefixes[my_factor_start];
+                weight(my_factor_end - my_factor_start) + repetitions_in_prefixes[my_factor_start];
         } else {
             repetitions_in_prefixes[i + 1] = repetitions_in_prefixes[my_factor_start];
         }
@@ -110,7 +113,10 @@ fn compute_repeated_factors(
 mod tests {
 
     use crate::{
-        file::generate_random_binary_string, lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, string::rotate_string, suffix_array::suffix_array,
+        file::generate_random_binary_string,
+        lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach},
+        string::rotate_string,
+        suffix_array::{sa_to_rank, suffix_array},
     };
 
     use super::*;

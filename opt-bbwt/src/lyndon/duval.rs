@@ -26,7 +26,6 @@ pub fn duval<T: Ord>(s: &[T]) -> Vec<usize> {
     result
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -48,7 +47,7 @@ mod tests {
     #[test]
     fn test_duval_repeated_chars() {
         let s = b"aaa";
-        let expected = vec![0,1,2];
+        let expected = vec![0, 1, 2];
         assert_eq!(duval(s), expected);
     }
 
