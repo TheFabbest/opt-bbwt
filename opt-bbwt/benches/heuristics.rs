@@ -6,14 +6,8 @@ use opt_bbwt::{
 };
 
 fn heuristic_benchmarks(c: &mut Criterion) {
-    let corpus_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../corpora/dna");
-    let input = opt_bbwt::file::load_file_prefix(
-        corpus_path
-            .to_str()
-            .expect("corpus path must be valid UTF-8"),
-        500_000,
-    )
-    .expect("the benchmark corpus must be available");
+    let input = opt_bbwt::file::load_corpus("dna", 500_000)
+        .expect("the benchmark corpus must be available or downloadable");
 
     let (aperiodic_least_rotation_index, period_length) = lyndon::shiloach(&input);
     let aperiodic_least_rotation = (0..period_length)

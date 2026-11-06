@@ -13,6 +13,23 @@ The transform APIs are grouped under `opt_bbwt::transform`: use
 
 Being a work in progress, the interface is still subject to change, and the library is not yet to be considered stable.
 
+## Corpora and benchmarks
+
+The CLI and benchmarks use Pizza&Chili corpora. Missing corpora are downloaded
+on demand and cached in the workspace-level `./corpora` directory. The
+`OPT_BBWT_CORPORA_DIR` environment variable can override this location.
+Only the full corpus is downloaded and stored. The six supported corpus names
+are `english`, `sources`, `dna`, `pitches`, `proteins`, and `dblp.xml`.
+
+The CLI accepts either a corpus or a local input file:
+
+```bash
+cargo run -p opt-bbwt-cli -- --action bwt --corpus dna --length 50000
+cargo run -p opt-bbwt-cli -- --action bwt --file ./input.bin --length 50000
+```
+
+The `sources` corpus is downloaded from Pizza&Chili's `code/sources` path.
+
 ## Documentation
 
 The public API documentation is generated from Rust doc comments. Build and

@@ -9,8 +9,10 @@ repository.workspace = true
 readme = "../README.md"
 
 [dependencies]
+flate2 = "1"
 rand = "0.10.3"
 rustc-hash = "2"
+ureq = "2"
 
 [dev-dependencies]
 criterion = "0.5"
