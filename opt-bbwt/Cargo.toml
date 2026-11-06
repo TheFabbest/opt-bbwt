@@ -4,9 +4,11 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
-description = "Algorithms for the Burrows-Wheeler and Bijective Burrows-Wheeler transforms"
+description = "Burrows-Wheeler, bijective BWT, Lyndon, and optimal-BBWT algorithms"
 repository.workspace = true
 readme = "../README.md"
+keywords = ["burrows-wheeler", "bbwt", "lyndon", "compression"]
+categories = ["algorithms", "compression"]
 
 [dependencies]
 flate2 = "1"
