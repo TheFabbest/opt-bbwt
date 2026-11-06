@@ -12,6 +12,14 @@ Several implementations are provided for the same task to encourage experimentat
 
 Being a work in progress, the interface is still subject to change.
 
+## Installation
+
+Add the library to your project:
+
+```bash
+cargo add opt-bbwt
+```
+
 ## Corpora and benchmarks
 
 The CLI and benchmarks use Pizza&Chili corpora. Missing corpora are downloaded
