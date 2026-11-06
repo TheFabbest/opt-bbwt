@@ -1,3 +1,4 @@
+/// Copies a periodic slice into a new vector.
 pub fn from_period_slice(s: &[u8], start: usize, period_length: usize) -> Vec<u8> {
     let mut output = Vec::with_capacity(period_length);
     output.resize(period_length, 0);
@@ -7,7 +8,12 @@ pub fn from_period_slice(s: &[u8], start: usize, period_length: usize) -> Vec<u8
 
 /// Copies a periodic slice into a caller-provided buffer.
 ///
-/// The buffer length must equal `period_length`.
+/// `output` must have length `period_length`.
+///
+/// # Panics
+///
+/// Panics if `output.len() != period_length` or if a non-empty output is
+/// requested from an empty input.
 pub fn from_period_slice_into(s: &[u8], start: usize, period_length: usize, output: &mut [u8]) {
     assert_eq!(
         output.len(),
@@ -24,6 +30,7 @@ pub fn from_period_slice_into(s: &[u8], start: usize, period_length: usize, outp
     }
 }
 
+/// Returns a rotation of `s` starting at `start`.
 pub fn rotate_string(s: &[u8], start: usize) -> Vec<u8> {
     let mut output = vec![0; s.len()];
     rotate_string_into(s, start, &mut output);
@@ -32,7 +39,11 @@ pub fn rotate_string(s: &[u8], start: usize) -> Vec<u8> {
 
 /// Rotates a string into a caller-provided buffer.
 ///
-/// The buffer length must equal `s.len()`.
+/// `output` must have the same length as `s`.
+///
+/// # Panics
+///
+/// Panics if `output.len() != s.len()`.
 pub fn rotate_string_into(s: &[u8], start: usize, output: &mut [u8]) {
     assert_eq!(
         output.len(),

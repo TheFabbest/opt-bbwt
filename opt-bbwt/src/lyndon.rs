@@ -1,3 +1,5 @@
+//! Lyndon factorization and related algorithms.
+
 pub mod duval;
 pub mod shiloach;
 pub mod conjugatesfactors;

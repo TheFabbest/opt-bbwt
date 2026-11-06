@@ -12,7 +12,6 @@ const MAX_CHAR: usize = usize::MAX - 5;
 #[allow(dead_code)]
 const MSB: usize = 1usize << (usize::BITS - 1);
 
-// ----- Auxiliary Functions -----
 
 fn chars_to_usize_array(input_chars: &[u8]) -> Vec<usize> {
     input_chars.iter().map(|&c| c as usize).collect()
@@ -227,7 +226,6 @@ fn custom_binary_search_last(
     }
 }
 
-// ----- Core Algorithm Functions -----
 
 fn count_s_type(input: &[usize]) -> usize {
     let length = input.len();
@@ -521,7 +519,6 @@ fn initialize_sa(input: &[usize], sa: &mut [usize], using_l_type: bool) {
     }
 }
 
-// ----- Context for Induced Sorting Caches -----
 
 struct Case4Cache {
     l_cached: usize,
@@ -849,16 +846,12 @@ fn optimal_suffix_array_first(
     }
     *prev_n_s = n_s;
 
-    // Step 1
     place_indices_of_type(input, sa, using_l_type);
 
-    // Step 2
     merge_sort_substrings(input, sa, n_s, using_l_type);
 
-    // Step 3
     construct_reduced_problem(input, sa, n_s, using_l_type);
 
-    // Step 4
     heap_sort_reduced_problem(sa, n_s);
 
     true
@@ -873,16 +866,12 @@ fn optimal_suffix_array_second(input: &[usize], sa: &mut [usize]) {
         n_s = length - n_s;
     }
 
-    // Step 5
     restore_from_recursion(input, sa, n_s, using_l_type);
 
-    // Step 6
     preprocess(input, sa, n_s, using_l_type);
 
-    // Step 7
     initialize_sa(input, sa, using_l_type);
 
-    // Step 8
     induced_sorting(input, sa, using_l_type);
 }
 
@@ -979,7 +968,7 @@ unsafe fn optimal_suffix_array(
     optimal_suffix_array_second(input_slice, sa_slice);
 }
 
-/// Convenience wrapper for byte slice or string slice inputs
+/// Builds a suffix array for a byte slice into `sa`.
 pub fn optimal_suffix_array_bytes_into(input_chars: &[u8], sa: &mut [usize]) {
     let mut input = chars_to_usize_array(input_chars);
     unsafe { 
@@ -987,6 +976,7 @@ pub fn optimal_suffix_array_bytes_into(input_chars: &[u8], sa: &mut [usize]) {
     };
 }
 
+/// Builds a suffix array for a byte slice.
 pub fn optimal_suffix_array_bytes(input_chars: &[u8]) -> Vec<usize> {
     let mut sa = vec![0; input_chars.len()];
     optimal_suffix_array_bytes_into(input_chars, &mut sa);

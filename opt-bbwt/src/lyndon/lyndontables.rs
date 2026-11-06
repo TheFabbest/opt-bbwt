@@ -14,23 +14,18 @@ pub fn lyndon_table(s: &[u8], rank: &[usize]) -> Vec<usize> {
     lyndon_table
 }
 
-/// Computes the Lyndon Table (Lyn) in O(n) utilizing the newRank shortcut 
-/// to minimize expensive cache misses on the rank array.
+/// Computes the Lyndon table from rank information.
 pub fn compute_lyn_optimized(rank: &[usize], lyn_s: &[usize]) -> Vec<usize> {
     let n = rank.len();
-    // 2. Build the Lyn table backwards using the newRank shortcut
     let mut lyn = vec![1; n];
     for i in (0..n).rev() {
         lyn[i] = 1;
         let mut j = i + 1;
         
         while j < n {
-            // The O(1) mathematical shortcut logic:
-            // If LynS[j-1] < j-i, we know rank[i] < rank[j] is FALSE.
             let can_merge = if lyn_s[j - 1] < (j - i) {
                 false 
             } else {
-                // Fallback to the actual rank comparison only when necessary
                 rank[i] < rank[j]
             };
 

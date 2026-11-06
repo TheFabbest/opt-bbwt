@@ -1,5 +1,4 @@
-/// Computes the LCP (Longest Common Prefix) array in O(n) time 
-/// using Kasai's algorithm, given the text and its Suffix Array.
+/// Computes the longest-common-prefix array from `text` and its suffix array.
 pub fn lcp(text: &[u8], sa: &[usize], rank: &[usize]) -> Vec<usize> {
     let n = text.len();
     let mut lcp = vec![0; n];

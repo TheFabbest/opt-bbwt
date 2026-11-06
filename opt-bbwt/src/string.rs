@@ -1,3 +1,5 @@
+//! Helpers for periodic slices and rotations.
+
 pub mod helpers;
 
 pub use self::helpers::{

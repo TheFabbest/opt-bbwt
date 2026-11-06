@@ -1,3 +1,5 @@
+//! File and test-data helpers.
+
 pub mod reader;
 pub mod generator;
 

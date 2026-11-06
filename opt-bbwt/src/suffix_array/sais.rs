@@ -8,7 +8,7 @@ fn is_lms(types: &[bool], i: usize) -> bool {
 
 fn type_array(s: &[usize]) -> Vec<bool> {
     let mut types = vec![L_TYPE; s.len()];
-    types[s.len() - 1] = S_TYPE; // Sentinels are always S-type
+    types[s.len() - 1] = S_TYPE;
     for i in (0..s.len() - 1).rev() {
         if s[i] < s[i + 1] {
             types[i] = S_TYPE;
@@ -112,7 +112,6 @@ fn sais_core(s: &[usize], alphabet_size: usize) -> Vec<usize> {
 
     let mut sa = vec![usize::MAX; len];
 
-    // Step 1: Guess LMS positions
     let mut tail_ptrs = tails.clone();
     for i in (0..len).rev() {
         if is_lms(&types, i) {
@@ -122,15 +121,12 @@ fn sais_core(s: &[usize], alphabet_size: usize) -> Vec<usize> {
         }
     }
 
-    // Step 2: Induce sort
     induce_sort_l(s, &mut sa, &heads, &types);
     induce_sort_s(s, &mut sa, &tails, &types);
 
-    // Step 3: Summarize LMS substrings
     let mut lms_map = vec![usize::MAX; len];
     let mut lms_offsets = Vec::new();
     
-    // SAFE LMS EXTRACTION: Collect LMS offsets in original string order
     for i in 0..len {
         if is_lms(&types, i) {
             lms_map[i] = lms_offsets.len();
@@ -157,7 +153,6 @@ fn sais_core(s: &[usize], alphabet_size: usize) -> Vec<usize> {
         }
     }
 
-    // Step 4: Solve summary SA
     let summary_sa = if current_name + 1 == lms_count {
         let mut sa_sum = vec![0; lms_count];
         for (i, &name) in summary_s.iter().enumerate() {
@@ -168,7 +163,6 @@ fn sais_core(s: &[usize], alphabet_size: usize) -> Vec<usize> {
         sais_core(&summary_s, current_name + 1)
     };
 
-    // Step 5: Accurate LMS sorting & final induction
     sa.fill(usize::MAX);
     let mut tail_ptrs = tails.clone();
     for &idx in summary_sa.iter().rev() {
@@ -192,7 +186,11 @@ pub fn sais(s: &[u8]) -> Vec<usize> {
 
 /// Computes the suffix array into a caller-provided buffer.
 ///
-/// The buffer must have the same length as `s`.
+/// `output` must have the same length as `s`.
+///
+/// # Panics
+///
+/// Panics if `output.len() != s.len()`.
 pub fn sais_into(s: &[u8], output: &mut [usize]) {
     assert_eq!(
         output.len(),
@@ -209,15 +207,13 @@ pub fn sais_into(s: &[u8], output: &mut [usize]) {
         }
     }
 
-    // Map input to internal alphabet reserving '0' as sentinel '$'
     let mut mapped = Vec::with_capacity(s.len() + 1);
     for &c in s {
         mapped.push((c as usize) + 1);
     }
-    mapped.push(0); // Virtual sentinel '$'
+    mapped.push(0);
 
     let full_sa = sais_core(&mapped, max_val + 2);
 
-    // Omit the sentinel suffix from output
     output.copy_from_slice(&full_sa[1..]);
 }

@@ -3,7 +3,7 @@ use crate::suffix_array::suffix_array;
 use crate::{rank};
 use rustc_hash::FxHashMap;
 
-// takes a lambda and executes it on each factor of each conjugate of the string
+/// Applies `f` to each factor of each conjugate of `s`.
 pub fn for_each_factor_of_each_conjugate<F>(s: &[u8], mut f: F)
 where
     F: FnMut(&[u8]),
@@ -15,20 +15,15 @@ where
 
     let (start, period_length) = shiloach(s);
 
-    // first `period_length` characters of the least rotation, wrapping around the end
     let aperiodic_least_rotation: Vec<u8> =
         (0..period_length).map(|k| s[(start + k) % n]).collect();
 
-    // suffix array construction
     let sa = suffix_array(&aperiodic_least_rotation);
 
-    // rank array
     let rank = rank::sa_to_rank(&sa);
 
-    // lyndon table
     let lyndon_table = lyndon::lyndontables::lyndon_table(&aperiodic_least_rotation, &rank);
 
-    // lyndon suffix table
     let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(&aperiodic_least_rotation);
 
     for i in 1..period_length {
@@ -49,14 +44,15 @@ where
 }
 
 
-// A completely flat structure designed for cache-friendly iteration
+/// Groups equal factors and the conjugate indices where they occur.
 pub struct GroupedFactors<'a> {
     pub sorted_factors: Vec<&'a [u8]>,
-    pub factor_indices: Vec<usize>,       // Flat array of all conjugate indices
-    pub factor_starts: Vec<usize>,        // Start offset in factor_indices for each factor
-    pub factor_lengths: Vec<usize>,       // Number of indices for each factor
+    pub factor_indices: Vec<usize>,
+    pub factor_starts: Vec<usize>,
+    pub factor_lengths: Vec<usize>,
 }
 
+/// Groups factors from an aperiodic least rotation.
 pub fn get_factor_with_conjugates_grouped<'a>(
     aperiodic_least_rotation: &'a [u8],
 ) -> GroupedFactors<'a> {
@@ -76,9 +72,7 @@ pub fn get_factor_with_conjugates_grouped<'a>(
     let lyndon_table = lyndon::lyndontables::lyndon_table(aperiodic_least_rotation, &rank);
     let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(aperiodic_least_rotation);
 
-    // Arena for linked list: stores (conjugate_index, next_node_index)
     let mut arena: Vec<(usize, usize)> = Vec::with_capacity(n * 2);
-    // Map: factor -> (head_idx, tail_idx)
     let mut factors_map: FxHashMap<&'a [u8], (usize, usize)> = FxHashMap::default();
 
     let mut push_to_arena = |factor: &'a [u8], idx: usize| {
@@ -86,12 +80,11 @@ pub fn get_factor_with_conjugates_grouped<'a>(
         match factors_map.entry(factor) {
             Entry::Occupied(mut occ) => {
                 let tail = &mut occ.get_mut().1;
-                // Prevent basic consecutive duplicates
                 if arena[*tail].0 != idx {
                     let new_node = arena.len();
                     arena.push((idx, usize::MAX));
                     arena[*tail].1 = new_node;
-                    *tail = new_node; // Update tail in place
+                    *tail = new_node;
                 }
             }
             Entry::Vacant(vac) => {
@@ -104,7 +97,6 @@ pub fn get_factor_with_conjugates_grouped<'a>(
 
     push_to_arena(aperiodic_least_rotation, 0);
 
-    // Process suffixes
     for i in (1..n).rev() {
         let mut factor_start = i;
         while factor_start < n {
@@ -115,7 +107,6 @@ pub fn get_factor_with_conjugates_grouped<'a>(
         }
     }
 
-    // Process prefixes
     for i in 1..n {
         let mut my_factor_end = i;
         while my_factor_end > 0 {
@@ -127,7 +118,6 @@ pub fn get_factor_with_conjugates_grouped<'a>(
         }
     }
 
-    // 1. Collect unique factors and sort them reverse-lexicographically
     let mut sorted_factors: Vec<&'a [u8]> = factors_map.keys().copied().collect();
     sorted_factors.sort_unstable_by(|a, b| b.cmp(a));
 
@@ -135,7 +125,6 @@ pub fn get_factor_with_conjugates_grouped<'a>(
     let mut factor_starts = Vec::with_capacity(sorted_factors.len());
     let mut factor_lengths = Vec::with_capacity(sorted_factors.len());
 
-    // 2. Flatten the linked lists into a single continuous array
     for factor in &sorted_factors {
         let (head, _) = factors_map[factor];
         let start = factor_indices.len();
@@ -146,10 +135,8 @@ pub fn get_factor_with_conjugates_grouped<'a>(
             curr = arena[curr].1;
         }
         
-        // Sort the newly added slice
         factor_indices[start..].sort_unstable();
         
-        // Stable in-place deduplication for the tail of the vector
         let mut write_idx = start;
         for read_idx in start..factor_indices.len() {
             if write_idx == start || factor_indices[read_idx] != factor_indices[write_idx - 1] {
@@ -158,7 +145,6 @@ pub fn get_factor_with_conjugates_grouped<'a>(
             }
         }
         
-        // Truncate back to the deduplicated length
         factor_indices.truncate(write_idx);
         let keep_len = write_idx - start;
 

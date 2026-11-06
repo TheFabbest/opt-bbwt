@@ -1,4 +1,4 @@
-// reads a file into [u8] and returns it
+/// Reads a complete file into a byte vector.
 pub fn read_file_to_bytes(path: &str) -> std::io::Result<Vec<u8>> {
     use std::fs::File;
     use std::io::Read;
@@ -9,7 +9,7 @@ pub fn read_file_to_bytes(path: &str) -> std::io::Result<Vec<u8>> {
     Ok(buffer)
 }
 
-// coprora loader
+/// Reads at most `length` bytes from a file in the `corpora` directory.
 pub fn load_corpus(corpus_name: &str, length: usize) -> std::io::Result<Vec<u8>> {
     load_file_prefix(&format!("./corpora/{}", corpus_name), length)
 }

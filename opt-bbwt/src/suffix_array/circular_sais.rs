@@ -1,8 +1,5 @@
-// refers to https://github.com/hmmpiatkowski/bbwt
-
 use crate::{lyndon::{duval, lyndon_suffix_table, lyndon_table, shiloach}, rank::sa_to_rank, suffix_array::suffix_array, string::from_period_slice_into};
 
-// L and S type suffixes definition
 const L_TYPE: bool = false;
 const S_TYPE: bool = true;
 
@@ -153,7 +150,11 @@ pub fn circular_suffix_array(text: &[u8]) -> Vec<usize> {
 
 /// Computes the circular suffix array into a caller-provided buffer.
 ///
-/// The buffer must have the same length as `text`.
+/// `output` must have the same length as `text`.
+///
+/// # Panics
+///
+/// Panics if `output.len() != text.len()`.
 pub fn circular_suffix_array_into(text: &[u8], output: &mut [usize]) {
     assert_eq!(
         output.len(),
@@ -200,7 +201,6 @@ fn circular_suffix_array_inner(
         return;
     }
 
-    // compute types
     let mut suff_type = BitVector::new(len + 7);
     let mut spc_suff = BitVector::new(len + 1);
 
@@ -245,7 +245,6 @@ fn circular_suffix_array_inner(
 
     spc_suff.set(len, true);
 
-    // presort
     
     let mut tmp_buckets = vec![0; alph_size + 1];
 
@@ -376,7 +375,6 @@ fn circular_suffix_array_inner(
         }
     }
 
-    // Final induction phase
     tmp_buckets.copy_from_slice(&buckets);
     for i in num_lms_suff..len {
         sa[i] = -1;
@@ -398,23 +396,19 @@ fn circular_suffix_array_inner(
 }
 
 
-// returns the circular suffix array of the conjugate of the input string that yields the least number of runs in their BBWT
 pub fn optimal_csa(input: &[u8]) -> usize {
-    // find the least rotation of the input string
     let (start, period_length) = shiloach(input);
 
     let mut text_storage = vec![0; period_length];
     from_period_slice_into(input, start, period_length, &mut text_storage);
     let text = text_storage.as_slice();
 
-    // common computation for all conjugates
 
     let min_c = *text.iter().min().unwrap() as usize;
     let max_c = *text.iter().max().unwrap() as usize;
     let alph_size = max_c - min_c + 1;
 
     let mut buckets = vec![0; alph_size + 1];
-    //let mut tmp_buckets = vec![0; alph_size + 1]; // can pre-allocate some stuff, but we need to pass these to the inner function
 
     let in_str: Vec<usize> = text.iter().map(|&c| (c as usize) - min_c).collect();
 
@@ -422,27 +416,22 @@ pub fn optimal_csa(input: &[u8]) -> usize {
 
     let n = in_str.len();
 
-    // concatenated = text + text to handle all conjugates in one pass
     let mut concatenated = Vec::with_capacity(2 * n);
     concatenated.extend_from_slice(&in_str);
     concatenated.extend_from_slice(&in_str);
 
-    // calculate circular suffix array for the first conjugate (the least rotation)
     let sa = &suffix_array(text);
     let rank = &sa_to_rank(sa);
 
-    // lyndon table and lyndon suffix table for fast access to the factors of all conjugates
     let lyndon_table = lyndon_table(text, rank);
     let lyndon_suffix_table = lyndon_suffix_table(text);
 
-    // specific computation for each conjugate, initialize with data from the least rotation
     let mut best_run_count = 0;
     let mut best_conjugate = 0;
     let mut csa = vec![0; n];
 
     let mut prev_char = None;
     for idx in sa {
-        // Preceding character within its Lyndon factor context
         let prev_idx = if *idx == 0 {
             n - 1
         } else {
@@ -462,7 +451,6 @@ pub fn optimal_csa(input: &[u8]) -> usize {
         let rotated_string = &concatenated[n - start.. n + n - start].to_vec();
 
         
-        // Compute the Duval factorization of the rotated string
         let mut factors: Vec<usize> = Vec::new();
 
         let mut factor_start = shift;
@@ -480,11 +468,8 @@ pub fn optimal_csa(input: &[u8]) -> usize {
             end -= factor_len;
         }
 
-        // The suffix table gave us lengths right-to-left. 
-        // Reverse them to match Duval's left-to-right expectation.
         u_factor_lengths.reverse();
 
-        // The prefix is sitting at the end of the rotated string, starting at `n - shift`
         let mut current_offset = n - shift;
         for len in u_factor_lengths {
             factors.push(current_offset);
@@ -516,14 +501,12 @@ pub fn optimal_csa(input: &[u8]) -> usize {
                 n - factor_start
             };
 
-            // Preceding character within its Lyndon factor context
             let prev_idx = if idx as usize == factor_start {
                 factor_start + factor_len - 1
             } else {
                 idx as usize - 1
             };
 
-            // FIX: Index into the correctly rotated string
             let current = rotated_string[prev_idx];
 
             if prev_char != Some(current) {

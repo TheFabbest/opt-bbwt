@@ -1,4 +1,4 @@
-/// Computes the starting indices of the Lyndon factors of `s` using Duval's algorithm in O(n) time and O(1) extra space.
+/// Returns the starting indices of the Lyndon factors of `s`.
 pub fn duval<T: Ord>(s: &[T]) -> Vec<usize> {
     let n = s.len();
     let mut result = Vec::new();

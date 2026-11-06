@@ -4,14 +4,8 @@ pub fn most_factors(lyndon_table: &[usize], lyndon_suffix_table: &[usize]) -> us
         return 0;
     }
 
-    // count the number of factors for each conjugate
-
-    // suffixes from the lyndon table
-    // reverse walk through the lyndon table to count the number of factors for each suffix
-    // skip lyndon conjugate which is always 1
-
     let mut counts_for_suffixes = vec![0; len + 1];
-    counts_for_suffixes[0] = 1; // redundant, but for clarity
+    counts_for_suffixes[0] = 1;
     counts_for_suffixes[len] = 0;
     for i in (1..len).rev() {
         counts_for_suffixes[i] = 1 + counts_for_suffixes[i + lyndon_table[i]];
@@ -19,12 +13,11 @@ pub fn most_factors(lyndon_table: &[usize], lyndon_suffix_table: &[usize]) -> us
 
     let mut counts_for_prefixes = vec![0; len + 1];
     counts_for_prefixes[0] = 0;
-    counts_for_prefixes[len] = 1; // redundant, but for clarity
+    counts_for_prefixes[len] = 1;
     for i in 0..len - 1 {
         counts_for_prefixes[i + 1] = 1 + counts_for_prefixes[i + 1 - lyndon_suffix_table[i]];
     }
 
-    // return the index with max sum of counts for suffixes and prefixes
     let mut max_factors = 0;
     let mut max_index = 0;
     for i in 1..len {
@@ -62,17 +55,13 @@ fn compute_repeated_factors(
     let len = lyndon_table.len();
 
     let mut repetitions_in_suffixes = vec![0; len + 1];
-    repetitions_in_suffixes[len] = 0; // boundary condition: no repetitions in the empty suffix
+    repetitions_in_suffixes[len] = 0;
     for i in (1..len).rev() {
-        // if the current factor (from i to i + lyndon_table[i]) is the same as the next one (from i + lyndon_table[i] to i + lyndon_table[i] + lyndon_table[i + lyndon_table[i]]),
-        // then we can count it as a repetition (1 + repetitions_in_suffixes[i + lyndon_table[i]])
-        // else, the number of repetitions is the same as the next one (repetitions_in_suffixes[i + lyndon_table[i]])
-
         let my_factor_start = i;
         let my_factor_end = i + lyndon_table[i];
         let next_factor_start = my_factor_end;
         if next_factor_start >= len {
-            repetitions_in_suffixes[i] = 0; // no next factor, so no repetitions
+            repetitions_in_suffixes[i] = 0;
             continue;
         }
         let next_factor_end = next_factor_start + lyndon_table[next_factor_start];
@@ -85,11 +74,11 @@ fn compute_repeated_factors(
     }
 
     let mut repetitions_in_prefixes = vec![0; len + 1];
-    repetitions_in_prefixes[0] = 0; // boundary condition: no repetitions in the empty prefix
+    repetitions_in_prefixes[0] = 0;
     for i in 0..len - 1 {
         let my_factor_start = i + 1 - lyndon_suffix_table[i];
         if my_factor_start == 0 {
-            repetitions_in_prefixes[i + 1] = 0; // no previous factor, so no repetitions
+            repetitions_in_prefixes[i + 1] = 0;
             continue;
         }
         let my_factor_end = i + 1;
@@ -105,7 +94,6 @@ fn compute_repeated_factors(
         }
     }
 
-    // return the index with max sum of counts for suffixes and prefixes
     let mut max_repeated_factors = 0;
     let mut max_index = 0;
     for i in 1..len {
@@ -145,7 +133,6 @@ mod tests {
 
     #[test]
     fn test_most_factors_example() {
-        // abanan
         let lyndon_table = vec![6, 1, 2, 1, 2, 1];
         let lyndon_suffix_table = vec![1, 2, 1, 4, 1, 6];
         let result = most_factors(&lyndon_table, &lyndon_suffix_table);
@@ -154,7 +141,6 @@ mod tests {
 
     #[test]
     fn test_most_repeated_factors_example() {
-        // abanan
         let s = b"abanan";
         let lyndon_table = vec![6, 1, 2, 1, 2, 1];
         let lyndon_suffix_table = vec![1, 2, 1, 4, 1, 6];
@@ -195,7 +181,6 @@ mod tests {
 
     #[test]
     fn test_most_repeated_factors_edge_characters() {
-        // tests a string with 256 unique characters, covering the full range of byte values, to ensure that the function handles all possible byte values correctly.
         let s = (0u8..=255).collect::<Vec<u8>>();
         let (start, period_length) = shiloach(&s);
         let s: Vec<u8> = (0..period_length)

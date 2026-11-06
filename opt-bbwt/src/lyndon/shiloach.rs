@@ -1,4 +1,6 @@
 use std::cmp::Ordering;
+
+/// Finds the least rotation of `s`.
 pub fn shiloach<T: Ord>(s: &[T]) -> (usize, usize) {
     if s.is_empty() {
         return (0, 0);

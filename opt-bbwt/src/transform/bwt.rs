@@ -1,6 +1,8 @@
 use crate::suffix_array::suffix_array;
 
-/// Computes the Burrows-Wheeler Transform (BWT) of a string.
+/// Computes the Burrows-Wheeler Transform (BWT) of `s`.
+///
+/// The returned vector has the same length as the input.
 pub fn bwt(s: &[u8]) -> Vec<u8> {
     let mut output = vec![0; s.len()];
     bwt_into(s, &mut output);
@@ -9,7 +11,11 @@ pub fn bwt(s: &[u8]) -> Vec<u8> {
 
 /// Computes the BWT into a caller-provided buffer.
 ///
-/// The buffer must have the same length as `s`.
+/// `output` must have the same length as `s`.
+///
+/// # Panics
+///
+/// Panics if `output.len() != s.len()`.
 pub fn bwt_into(s: &[u8], output: &mut [u8]) {
     assert_eq!(
         output.len(),

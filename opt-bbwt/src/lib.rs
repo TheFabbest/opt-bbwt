@@ -1,3 +1,5 @@
+//! Algorithms for Burrows-Wheeler transforms and related string operations.
+
 pub mod file;
 pub mod heuristics;
 pub mod lyndon;

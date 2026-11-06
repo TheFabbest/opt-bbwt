@@ -1,10 +1,18 @@
-// this implementation refers to https://github.com/hmmpiatkowski/bbwt
-
 use crate::{lyndon::duval, suffix_array::circular_suffix_array};
 
 pub mod naive;
 
-/// Computes the Bijective Burrows-Wheeler Transform (BBWT) of a string.
+/// Computes the Bijective Burrows-Wheeler Transform (BBWT) of `text`.
+///
+/// The returned vector has the same length as the input.
+///
+/// # Examples
+///
+/// ```
+/// use opt_bbwt::transform::bbwt::bbwt;
+///
+/// assert_eq!(bbwt(b""), b"");
+/// ```
 pub fn bbwt(text: &[u8]) -> Vec<u8> {
     let mut output = vec![0; text.len()];
     bbwt_into(text, &mut output);
@@ -13,7 +21,11 @@ pub fn bbwt(text: &[u8]) -> Vec<u8> {
 
 /// Computes the BBWT into a caller-provided buffer.
 ///
-/// The buffer must have the same length as `text`.
+/// `output` must have the same length as `text`.
+///
+/// # Panics
+///
+/// Panics if `output.len() != text.len()`.
 pub fn bbwt_into(text: &[u8], output: &mut [u8]) {
     assert_eq!(
         output.len(),
@@ -48,6 +60,18 @@ pub fn bbwt_into(text: &[u8], output: &mut [u8]) {
 }
 
 /// Computes the inverse of the Bijective Burrows-Wheeler Transform (BBWT).
+///
+/// For BBWT output, this reconstructs the original input:
+/// `unbbwt(&bbwt(text)) == text`.
+///
+/// # Examples
+///
+/// ```
+/// use opt_bbwt::transform::bbwt::{bbwt, unbbwt};
+///
+/// let input = b"banana";
+/// assert_eq!(unbbwt(&bbwt(input)), input);
+/// ```
 pub fn unbbwt(in_str: &[u8]) -> Vec<u8> {
     let mut output = vec![0; in_str.len()];
     unbbwt_into(in_str, &mut output);
@@ -56,7 +80,11 @@ pub fn unbbwt(in_str: &[u8]) -> Vec<u8> {
 
 /// Computes the inverse BBWT into a caller-provided buffer.
 ///
-/// The buffer must have the same length as `in_str`.
+/// `output` must have the same length as `in_str`.
+///
+/// # Panics
+///
+/// Panics if `output.len() != in_str.len()`.
 pub fn unbbwt_into(in_str: &[u8], output: &mut [u8]) {
     assert_eq!(
         output.len(),
@@ -79,7 +107,6 @@ pub fn unbbwt_into(in_str: &[u8], output: &mut [u8]) {
     let mut chars_seen = vec![0; alph_size];
     let mut std_perm = vec![0; len];
 
-    // lambda to map char to index in the alphabet
     let char_to_index = |ch: u8| (ch - alph_begin) as usize;
 
     for &ch in in_str {

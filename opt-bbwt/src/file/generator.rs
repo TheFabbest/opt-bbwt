@@ -1,6 +1,6 @@
 use rand::RngExt;
 
-// generates a random binary string
+/// Generates a random binary string of the requested length.
 pub fn generate_random_binary_string(length: usize) -> String {
     let mut rng = rand::rng();
     let mut result = String::with_capacity(length);
