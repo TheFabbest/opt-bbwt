@@ -1,0 +1,30 @@
+[package]
+name = "opt-bbwt"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Algorithms for the Burrows-Wheeler and Bijective Burrows-Wheeler transforms"
+repository.workspace = true
+readme = "../README.md"
+
+[dependencies]
+flate2 = "1"
+rand = "0.10.3"
+rustc-hash = "2"
+ureq = "2"
+
+[dev-dependencies]
+criterion = "0.5"
+
+[[bench]]
+name = "transforms"
+harness = false
+
+[[bench]]
+name = "optimal"
+harness = false
+
+[[bench]]
+name = "heuristics"
+harness = false

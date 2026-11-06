@@ -1,0 +1,19 @@
+[workspace]
+members = [
+    "opt-bbwt",       # Core library crate
+    "opt-bbwt-cli",   # CLI executable crate
+]
+resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+authors = ["Fabrizio Apuzzo <fabrizioapuzzo2003@gmail.com>"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/TheFabbest/opt-bbwt"
+
+# Shared dependencies for the entire workspace
+[workspace.dependencies]
+
+[profile.release]
+debug = true
