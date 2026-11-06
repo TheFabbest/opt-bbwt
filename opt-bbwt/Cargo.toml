@@ -4,6 +4,9 @@ version.workspace = true
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
+description = "Algorithms for the Burrows-Wheeler and Bijective Burrows-Wheeler transforms"
+repository.workspace = true
+readme = "../README.md"
 
 [dependencies]
 rand = "0.10.3"

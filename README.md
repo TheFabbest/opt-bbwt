@@ -13,6 +13,24 @@ The transform APIs are grouped under `opt_bbwt::transform`: use
 
 Being a work in progress, the library is not yet fully documented, but the main algorithms are already implemented and tested. However, the interface is still subject to change, and the library is not yet to be considered stable.
 
+## Documentation
+
+The public API documentation is generated from Rust doc comments. Build and
+open it locally with:
+
+```bash
+cargo doc --workspace --no-deps --open
+```
+
+To check documentation examples without opening a browser, run:
+
+```bash
+cargo test --workspace --doc
+```
+
+When publishing the library to crates.io, docs.rs automatically builds the
+API documentation from these same comments.
+
 ## Conjugate selection
 An interesting open problem in the context of the BBWT is the selection of a conjugate that yields the least number of runs in its BBWT. This is important because the number of runs in the BBWT is directly related to the compressibility of the transformed string, and thus to the efficiency of compression algorithms that rely on it. While our experimentation showed every rotation of the same string often yields a similar number of runs, the problem is still interesting from a theoretical point of view, and it is also relevant in practice for some specific families of strings.
 
