@@ -1,5 +1,10 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use opt_bbwt::optimalbbwt::variants::{naive_optimal_bbwt, optimal_bbwt_reuse, optimal_bbwt_global_sort, optimal_bbwt_chain};
+use opt_bbwt::optimalbbwt::{
+    globalsort::optimal_bbwt_global_sort,
+    naive::naive_optimal_bbwt,
+    optimalbbwt::optimal_bbwt_chain,
+    reuse::optimal_bbwt_reuse,
+};
 
 fn optimal_bbwt_benchmarks(c: &mut Criterion) {
     let corpus_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

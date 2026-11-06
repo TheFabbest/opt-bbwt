@@ -734,6 +734,9 @@ pub fn chain_min_runs_sa(text: &[u8], circular_sa: Option<&[usize]>, prune: bool
 /// Index (among the conjugates of the least rotation of the primitive root) of the first conjugate
 /// with the fewest BBWT runs. `prune` enables the certified skipping.
 pub fn optimal_bbwt_chain(input: &[u8], prune: bool) -> usize {
+    if input.is_empty() {
+        return 0;
+    }
     let (start, period) = shiloach(input);
     let text: Vec<u8> = (0..period).map(|k| input[(start + k) % input.len()]).collect();
     let circular_sa = circular_suffix_array(&text); // initial order of the text_len rotations: the only suffix-array computation of the run
@@ -742,6 +745,9 @@ pub fn optimal_bbwt_chain(input: &[u8], prune: bool) -> usize {
 
 /// Same sweep, cross-checked against the oracle at every step when n <= 400, with statistics.
 pub fn online_bbwt_check(input: &[u8]) -> usize {
+    if input.is_empty() {
+        return 0;
+    }
     let (start, period) = shiloach(input);
     let text: Vec<u8> = (0..period).map(|k| input[(start + k) % input.len()]).collect();
     let verify = text.len() <= 400;

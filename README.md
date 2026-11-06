@@ -7,6 +7,10 @@ This library is a modular rust implementation of:
 The objective is to provide a fast, modular and memory-efficient implementation of the main algorithms related to the BWT, this enables fast and unbiased development and evaluation of new algorithms and heuristics, while also supporting the development of new applications.
 For this reason, several algorithms are implemented even for the same task, and the user can either choose the one that best fits their needs, or use the default one which is usually the fastest and most memory-efficient.
 
+The transform APIs are grouped under `opt_bbwt::transform`: use
+`transform::bwt` and `transform::bbwt` for the default implementations, and
+`transform::bbwt::naive` for the reference implementation.
+
 Being a work in progress, the library is not yet fully documented, but the main algorithms are already implemented and tested. However, the interface is still subject to change, and the library is not yet to be considered stable.
 
 ## Conjugate selection

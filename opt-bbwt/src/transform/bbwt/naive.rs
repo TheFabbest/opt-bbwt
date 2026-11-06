@@ -1,4 +1,6 @@
-use crate::{lyndon::duval};
+use crate::lyndon::duval;
+
+/// Reference BBWT implementation intended for correctness checks and research.
 
 fn omega_cmp(a: &[u8], b: &[u8]) -> std::cmp::Ordering {
     // Compare their infinite expansions a.iter().cycle() and b.iter().cycle()

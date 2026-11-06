@@ -2,6 +2,8 @@
 
 use crate::{lyndon::duval, suffix_array::circular_suffix_array};
 
+pub mod naive;
+
 /// Computes the Bijective Burrows-Wheeler Transform (BBWT) of a string.
 pub fn bbwt(text: &[u8]) -> Vec<u8> {
     let mut output = vec![0; text.len()];

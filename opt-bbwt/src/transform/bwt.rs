@@ -1,5 +1,6 @@
 use crate::suffix_array::suffix_array;
 
+/// Computes the Burrows-Wheeler Transform (BWT) of a string.
 pub fn bwt(s: &[u8]) -> Vec<u8> {
     let mut output = vec![0; s.len()];
     bwt_into(s, &mut output);

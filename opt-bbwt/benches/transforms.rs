@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use opt_bbwt::{bbwt::bbwt, bwt::bwt};
+use opt_bbwt::transform::{bbwt::bbwt, bwt::bwt};
 
 fn transform_benchmarks(c: &mut Criterion) {
     let corpus_path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))

@@ -1,7 +1,10 @@
-use crate::bbwt::bbwt;
+use crate::transform::bbwt::bbwt;
 use crate::lyndon::shiloach;
 
 pub fn naive_optimal_bbwt(text: &[u8]) -> usize {
+    if text.is_empty() {
+        return 0;
+    }
     let (start, n) = shiloach(text);
 
     let s = (0..n).map(|k| text[(start + k) % text.len()]).collect::<Vec<u8>>();
