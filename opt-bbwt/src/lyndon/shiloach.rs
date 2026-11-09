@@ -109,7 +109,7 @@ fn special<T: Ord>(s: &[T], i_max: usize, j_max: usize) -> (usize, usize, usize)
 }
 
 /// Returns (possibly shortened slice, alpha, beta, d).
-fn phase_one<T: Ord>(mut s: & [T]) -> (&[T], usize, usize, usize) {
+fn phase_one<T: Ord>(mut s: &[T]) -> (&[T], usize, usize, usize) {
     loop {
         let n = s.len();
         if n == 1 {

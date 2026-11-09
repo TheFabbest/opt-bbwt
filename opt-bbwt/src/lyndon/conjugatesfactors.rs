@@ -30,7 +30,11 @@ where
         f(factor);
     }
 
-    for (i, factor_length) in lyndon_suffix_table.iter().enumerate().take(period_length - 1) {
+    for (i, factor_length) in lyndon_suffix_table
+        .iter()
+        .enumerate()
+        .take(period_length - 1)
+    {
         let factor_end = i + 1;
         let factor_start = factor_end - factor_length;
         let factor = &aperiodic_least_rotation[factor_start..factor_end];
