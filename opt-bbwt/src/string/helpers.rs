@@ -1,6 +1,6 @@
 /// Copies a periodic slice into a new vector.
 pub fn from_period_slice(s: &[u8], start: usize, period_length: usize) -> Vec<u8> {
-    let mut output = Vec::with_capacity(period_length);
+    let mut output = vec![0; period_length];
     output.resize(period_length, 0);
     from_period_slice_into(s, start, period_length, &mut output);
     output

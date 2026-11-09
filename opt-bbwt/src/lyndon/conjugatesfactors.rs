@@ -25,16 +25,13 @@ where
 
     let lyndon_suffix_table = lyndon::lyndontables::lyndon_suffix_table(&aperiodic_least_rotation);
 
-    for i in 1..period_length {
-        let factor_start = i;
-        let factor_length = lyndon_table[i];
+    for (factor_start, factor_length) in lyndon_table.iter().enumerate().skip(1) {
         let factor = &aperiodic_least_rotation[factor_start..factor_start + factor_length];
         f(factor);
     }
 
-    for i in 0..period_length - 1 {
+    for (i, factor_length) in lyndon_suffix_table.iter().enumerate().take(period_length - 1) {
         let factor_end = i + 1;
-        let factor_length = lyndon_suffix_table[i];
         let factor_start = factor_end - factor_length;
         let factor = &aperiodic_least_rotation[factor_start..factor_end];
         f(factor);

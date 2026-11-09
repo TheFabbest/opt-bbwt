@@ -124,13 +124,13 @@ pub fn unbbwt_into(in_str: &[u8], output: &mut [u8]) {
 
     let mut out_pos = len - 1;
     for j in 0..len {
-        if std_perm[j] == std::usize::MAX {
+        if std_perm[j] == usize::MAX {
             continue;
         }
 
         let mut in_pos = j;
 
-        while std_perm[in_pos] != std::usize::MAX {
+        while std_perm[in_pos] != usize::MAX {
             output[out_pos] = in_str[in_pos];
             if out_pos == 0 {
                 break;
@@ -138,7 +138,7 @@ pub fn unbbwt_into(in_str: &[u8], output: &mut [u8]) {
             out_pos -= 1;
             let t = in_pos;
             in_pos = std_perm[in_pos];
-            std_perm[t] = std::usize::MAX;
+            std_perm[t] = usize::MAX;
         }
     }
 }

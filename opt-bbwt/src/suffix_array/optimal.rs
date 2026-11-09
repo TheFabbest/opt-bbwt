@@ -412,11 +412,10 @@ fn preprocess(input: &[usize], sa: &mut [usize], n_s: usize, using_l_type: bool)
             || input[index] > input[index + 1]
             || (next_is_l && input[index] == input[index + 1]);
 
-        if (current_is_l && !using_l_type) || (!current_is_l && using_l_type) {
-            if last_inserted_index > 0 {
+        if ((current_is_l && !using_l_type) || (!current_is_l && using_l_type))
+            && last_inserted_index > 0 {
                 last_inserted_index -= 1;
                 sa[last_inserted_index] = index;
-            }
         }
         next_is_l = current_is_l;
     }
@@ -620,11 +619,10 @@ impl Case4Cache {
         let l = custom_binary_search_last(input, sa, length, input[j]);
         if l == 0 || l >= length {
             return;
-        } else if input[j] == input[j + 1] {
-            if !(sa[l - 1] == BH || sa[l - 1] == R2 || sa[l - 1] == R1 || sa[l - 1] == BT) {
+        } else if input[j] == input[j + 1]
+            && (!(sa[l - 1] == BH || sa[l - 1] == R2 || sa[l - 1] == R1 || sa[l - 1] == BT)) {
                 self.case4_s(input, sa, l, j);
                 return;
-            }
         }
 
         let prev = sa[l - 1];
@@ -704,11 +702,9 @@ impl Case4Cache {
         let l = custom_binary_search(input, sa, length, input[j], false);
         if l >= length - 1 {
             return;
-        } else if j != length - 1 && input[j] == input[j + 1] {
-            if !(sa[l + 1] == BH || sa[l + 1] == R2 || sa[l + 1] == R1 || sa[l + 1] == BT) {
-                self.case4(input, sa, l, j);
-                return;
-            }
+        } else if j != length - 1 && input[j] == input[j + 1] && (!(sa[l + 1] == BH || sa[l + 1] == R2 || sa[l + 1] == R1 || sa[l + 1] == BT)) {
+            self.case4(input, sa, l, j);
+            return;
         }
 
         if sa[l + 1] == BT {
@@ -868,8 +864,8 @@ fn optimal_suffix_array_first(input: &[usize], sa: &mut [usize], prev_n_s: &mut 
 
     let mut n_s = count_s_type(input);
     if n_s == 0 {
-        for i in 0..length {
-            sa[i] = length - i - 1;
+        for (i, sa_entry) in sa.iter_mut().take(length).enumerate() {
+            *sa_entry = length - i - 1;
         }
         return false;
     }

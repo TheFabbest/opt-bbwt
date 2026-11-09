@@ -127,9 +127,9 @@ fn sais_core(s: &[usize], alphabet_size: usize) -> Vec<usize> {
     let mut lms_map = vec![usize::MAX; len];
     let mut lms_offsets = Vec::new();
 
-    for i in 0..len {
+    for (i, lms_entry) in lms_map.iter_mut().enumerate().take(len) {
         if is_lms(&types, i) {
-            lms_map[i] = lms_offsets.len();
+            *lms_entry = lms_offsets.len();
             lms_offsets.push(i);
         }
     }

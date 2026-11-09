@@ -11,9 +11,7 @@ pub fn lcp(text: &[u8], sa: &[usize], rank: &[usize]) -> Vec<usize> {
                 h += 1;
             }
             lcp[rank[i]] = h;
-            if h > 0 {
-                h -= 1;
-            }
+            h = h.saturating_sub(1);
         }
     }
 

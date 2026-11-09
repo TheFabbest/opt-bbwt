@@ -108,7 +108,7 @@ fn pre_sort_suffixes_l(
         let mut j = j as usize;
 
         if !l_fac.get(j) {
-            j = j - 1;
+            j -= 1;
         } else {
             j = l_fac.next(j) - 1;
         }
@@ -136,7 +136,7 @@ fn pre_sort_suffixes_s(
 
         let mut j = j as usize;
         if !l_fac.get(j) {
-            j = j - 1;
+            j -= 1;
 
             if suff_type.get(j) == S_TYPE {
                 buckets[in_str[j] + 1] -= 1;
@@ -199,7 +199,7 @@ fn circular_suffix_array_inner(
     len: usize,
     lb_fac: &BitVector,
     alph_size: usize,
-    buckets: &Vec<usize>,
+    buckets: &[usize],
 ) {
     if len == 0 {
         return;
@@ -251,11 +251,11 @@ fn circular_suffix_array_inner(
 
     let mut tmp_buckets = vec![0; alph_size + 1];
 
-    for i in 0..len {
-        sa[i] = -1;
+    for sa_entry in sa.iter_mut().take(len) {
+        *sa_entry = -1;
     }
 
-    tmp_buckets.copy_from_slice(&buckets);
+    tmp_buckets.copy_from_slice(buckets);
     for i in 0..len {
         if is_lms_pos(i, lb_fac, &suff_type) && !spc_suff.get(i) {
             let b_idx = tmp_buckets[in_str[i] + 1] - 1;
@@ -264,7 +264,7 @@ fn circular_suffix_array_inner(
         }
     }
 
-    tmp_buckets.copy_from_slice(&buckets);
+    tmp_buckets.copy_from_slice(buckets);
     pre_sort_suffixes_l(
         in_str,
         sa,
@@ -275,7 +275,7 @@ fn circular_suffix_array_inner(
         &mut tmp_buckets,
     );
 
-    tmp_buckets.copy_from_slice(&buckets);
+    tmp_buckets.copy_from_slice(buckets);
     pre_sort_suffixes_s(in_str, sa, len, lb_fac, &suff_type, &mut tmp_buckets);
 
     let mut num_lms_suff = 0;
@@ -287,8 +287,8 @@ fn circular_suffix_array_inner(
         }
     }
 
-    for i in num_lms_suff..len {
-        sa[i] = 0;
+    for sa_entry in sa.iter_mut().take(len).skip(num_lms_suff) {
+        *sa_entry = 0;
     }
 
     f_start = 0;
@@ -393,9 +393,9 @@ fn circular_suffix_array_inner(
         }
     }
 
-    tmp_buckets.copy_from_slice(&buckets);
-    for i in num_lms_suff..len {
-        sa[i] = -1;
+    tmp_buckets.copy_from_slice(buckets);
+    for sa_entry in sa.iter_mut().take(len).skip(num_lms_suff) {
+        *sa_entry = -1;
     }
 
     for i in (0..num_lms_suff).rev() {
@@ -406,7 +406,7 @@ fn circular_suffix_array_inner(
         tmp_buckets[in_str[j] + 1] -= 1;
     }
 
-    tmp_buckets.copy_from_slice(&buckets);
+    tmp_buckets.copy_from_slice(buckets);
     pre_sort_suffixes_l(
         in_str,
         sa,
@@ -417,7 +417,7 @@ fn circular_suffix_array_inner(
         &mut tmp_buckets,
     );
 
-    tmp_buckets.copy_from_slice(&buckets);
+    tmp_buckets.copy_from_slice(buckets);
     pre_sort_suffixes_s(in_str, sa, len, lb_fac, &suff_type, &mut tmp_buckets);
 }
 
@@ -501,7 +501,7 @@ pub fn optimal_csa(input: &[u8]) -> usize {
         }
         lb_fac.set(n, true);
 
-        circular_suffix_array_inner(&rotated_string, &mut csa, n, &lb_fac, alph_size, &buckets);
+        circular_suffix_array_inner(rotated_string, &mut csa, n, &lb_fac, alph_size, &buckets);
 
         // count runs
         let mut run_count = 0;

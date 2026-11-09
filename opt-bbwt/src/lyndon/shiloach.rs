@@ -109,7 +109,7 @@ fn special<T: Ord>(s: &[T], i_max: usize, j_max: usize) -> (usize, usize, usize)
 }
 
 /// Returns (possibly shortened slice, alpha, beta, d).
-fn phase_one<'a, T: Ord>(mut s: &'a [T]) -> (&'a [T], usize, usize, usize) {
+fn phase_one<T: Ord>(mut s: & [T]) -> (&[T], usize, usize, usize) {
     loop {
         let n = s.len();
         if n == 1 {
@@ -122,7 +122,7 @@ fn phase_one<'a, T: Ord>(mut s: &'a [T]) -> (&'a [T], usize, usize, usize) {
             match compare_circular(s, i_max, j_max, ce) {
                 (p, Some(o)) => (i_max, j_max) = exclude(n, i_max, j_max, p, o == Ordering::Less),
                 (_, None) => {
-                    if n % 2 == 0 && i_max == 0 && j_max == fl {
+                    if n.is_multiple_of(2) && i_max == 0 && j_max == fl {
                         s = &s[..fl]; // A = A'A': loop on the half, O(1) space
                         break; // restarts the outer loop
                     }

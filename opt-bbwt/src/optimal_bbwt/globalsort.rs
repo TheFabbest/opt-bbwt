@@ -29,8 +29,8 @@ pub fn optimal_bbwt_global_sort(text: &[u8]) -> usize {
 
     let mut factor_of = vec![0usize; w.len()];
     for (id, f) in sorted.iter().enumerate() {
-        for p in starts[id]..starts[id] + f.len() {
-            factor_of[p] = id;
+        for factor in factor_of.iter_mut().skip(starts[id]).take(f.len()) {
+            *factor = id;
         }
     }
 
