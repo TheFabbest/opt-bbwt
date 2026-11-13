@@ -1,5 +1,6 @@
 use crate::lyndon::shiloach;
-use crate::suffix_array::circular_suffix_array;
+use crate::suffix_array::{circular_suffix_array, sa_to_rank};
+use crate::lyndon::lyndon_table;
 use std::cmp::Ordering;
 use std::collections::{HashSet, VecDeque};
 
@@ -16,22 +17,43 @@ use std::collections::{HashSet, VecDeque};
 //   block     several equal factors in a row (Lyndon factors are non-increasing, so equal ones are adjacent).
 //   entry     one conjugate of one DISTINCT factor, e.g. factor "aab" has entries "aab","aba","baa".
 //             It is identified by `id` = a text position inside the LAST occurrence of its block.
+//   owner     the last occurrence of a block: the factor whose positions are the ids of the entries.
 //   letter    the character just before the entry inside its factor (what the BBWT outputs for it).
 //   runs      number of maximal blocks of equal letters in the entries sorted in omega-order.
 //
-// FACTS USED
-//   * runs(BBWT(x)) = runs of the letters of the sorted entries of the DISTINCT factors of x.
-//   * Rotation x -> x[1..]+x[0]: the first factor loses its first char and splits into new factors
-//     (all strictly greater than the factors that follow); the moved char is appended at the back
-//     and merges with whole blocks there. A block touched at the back dies completely.
-//   * Entries of a block live in its LAST occurrence, because the front only consumes the FIRST one.
-//     Only when the new back factor equals the previous factor (the block grows) the ids shift.
+// WHAT ONE ROTATION DOES   (c = text[window_start] is the moved character)
+//   front  the first factor v loses its first char. v[1..] factorizes into "pieces", which are read
+//          from the Lyndon table of `text`. Pieces are always new factors.
+//   back   c is appended as a one-char factor and merges with the factors before it while
+//          "second-to-last < last". The result is ONE new factor `back`.
+//
+// INVARIANTS (proved in the comments where they are used, checked by the oracle in `verify` mode)
+//   I1  Every factor merged into `back` starts with a letter smaller than c (a Lyndon word of
+//       length > 1 that ends with c starts with a letter < c, and factors are non-increasing).
+//       Every piece and every copy of v starts with a letter >= c. So merging never reaches the
+//       pieces or the copies of the first block, and a piece never equals `back`.
+//   I2  The pieces are the Lyndon factors of v[1..]; they follow from the Lyndon table of `text`:
+//       v is the longest Lyndon prefix of text[window_start..] (it never wraps), and the walk
+//       p -> p + table[p] from window_start+1 lands exactly on the end of v.
+//
+// HOW ENTRIES CHANGE (owners die, owners are born)
+//   dead owner  = the first factor v if it has no second copy; every merged block (its last copy).
+//   born owner  = the last piece of each block of equal pieces; `back`, unless it equals the old
+//                 factor before it: then that block only grows (its last copy is now `back`) and
+//                 its entries are renamed (ids + |back|) instead of being deleted and inserted.
+//                 Renaming keeps them in the list, which keeps the lower bound used for skipping high.
+//   An id that is a dead owner position and not a born owner position is deleted for good;
+//   one that is a born owner position and not a dead one is inserted; one that is both ("kept")
+//   keeps its id but its word and/or letter changed, so it may need a new place in the order.
+//   The first position of the window leaves at the front and re-enters at the back
+//   (position p -> p + text_len); the other renaming is the growth of a block (see above).
 //
 // WHY MOST ENTRIES ARE NOT TOUCHED
 //   max_lcp = largest LCP between two neighbours in the sorted list = the longest common prefix
 //   any two entries can have. An entry whose word is unchanged for its first p > max_lcp characters
-//   keeps its place in the order. So only entries within max_lcp characters of a factor end (their
-//   word changes there) or on a factor start (their letter changes) are deleted and re-inserted.
+//   keeps its place in the order. So only kept entries within max_lcp characters of a factor end
+//   (their word changes there) or on a factor start (their letter changes) are deleted and
+//   re-inserted ("risky").
 //
 // WHY WORK CAN BE SKIPPED
 //   After the deletions the list is a subsequence of the true letter sequence, and a subsequence
@@ -59,10 +81,15 @@ fn mul_mod(a: u64, b: u64) -> u64 {
 }
 
 /// One occurrence of a Lyndon factor in the window: text[start..start+len] (absolute positions).
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 struct Factor {
     start: usize,
     len: usize,
+}
+impl Factor {
+    fn end(&self) -> usize {
+        self.start + self.len
+    }
 }
 
 /// Returns x mod text_len, for 0 <= x < 3*text_len, using comparisons instead of a division.
@@ -227,51 +254,6 @@ fn factor_is_smaller(text: &[u8], text_len: usize, f: Factor, g: Factor) -> bool
         }
     }
     f.len < g.len
-}
-
-// ---- sets of positions stored as sorted lists of half-open ranges (lo, hi) ----
-
-/// Positions that are in `a` but not in `b`.
-fn range_difference(a: &[(usize, usize)], b: &[(usize, usize)]) -> Vec<(usize, usize)> {
-    let mut out = Vec::new();
-    for &(lo, hi) in a {
-        let mut cur = lo; // everything in [lo, cur) has been handled
-        for &(b_lo, b_hi) in b {
-            if b_hi <= cur || b_lo >= hi {
-                continue;
-            }
-            if b_lo > cur {
-                out.push((cur, b_lo));
-            }
-            cur = cur.max(b_hi);
-            if cur >= hi {
-                break;
-            }
-        }
-        if cur < hi {
-            out.push((cur, hi));
-        }
-    }
-    out
-}
-/// Positions that are in both `a` and `b`.
-fn range_intersection(a: &[(usize, usize)], b: &[(usize, usize)]) -> Vec<(usize, usize)> {
-    let mut out = Vec::new();
-    for &(a_lo, a_hi) in a {
-        for &(b_lo, b_hi) in b {
-            let (lo, hi) = (a_lo.max(b_lo), a_hi.min(b_hi));
-            if lo < hi {
-                out.push((lo, hi));
-            }
-        }
-    }
-    out.sort();
-    out
-}
-/// Is position `p` inside one of the (sorted) ranges?
-fn range_contains(ranges: &[(usize, usize)], p: usize) -> bool {
-    let k = ranges.partition_point(|&(lo, _)| lo <= p);
-    k > 0 && p < ranges[k - 1].1
 }
 
 // ------------------------------------ sorted entry list ------------------------------------
@@ -521,6 +503,21 @@ impl SortedEntries {
 
 // ------------------------------------------ the sweep ------------------------------------------
 
+/// Calls `f(q)` for every position q in [lo, hi) that is covered by none of `owners`
+/// (ascending, disjoint). Costs O(#owners overlapping the range + #positions reported), so a
+/// long range that is almost entirely covered is never walked position by position.
+fn for_each_uncovered(lo: usize, hi: usize, owners: &[Factor], mut f: impl FnMut(usize)) {
+    let mut cur = lo;
+    for o in &owners[owners.partition_point(|o| o.end() <= lo)..] {
+        if o.start >= hi {
+            break;
+        }
+        (cur..o.start).for_each(&mut f);
+        cur = cur.max(o.end());
+    }
+    (cur..hi).for_each(&mut f);
+}
+
 /// State of the sweep over all rotations of `text`: where we are, the factorization of the current
 /// conjugate, and the sorted entries.
 #[derive(Clone)]
@@ -528,6 +525,7 @@ struct RotationSweep<'a> {
     text: &'a [u8],
     text_len: usize,
     window_start: usize, // the current conjugate is text[window_start..] + text[..window_start]
+    lyndon_len: Vec<usize>, // Lyndon table of `text` (see `lyndon_table`)
     prefix_hash: Vec<u64>, // prefix_hash[k] = polynomial hash of the first k chars of text·text·text
     base_power: Vec<u64>,  // base_power[k] = HASH_BASE^k mod HASH_MOD
     factors: VecDeque<Factor>, // Lyndon factors of the current conjugate, left to right, tiling [window_start, window_start+text_len)
@@ -535,6 +533,12 @@ struct RotationSweep<'a> {
     pending: Vec<u32>, // ids that must be inserted but have been postponed (may hold stale ids, see is_pending)
     is_pending: Vec<bool>, // is_pending[id]: the id is really pending
     pending_count: usize, // number of ids with is_pending == true
+    // buffers reused by every rotation (so that a step allocates nothing)
+    removed: Vec<Factor>, // old factors that no longer exist, ascending: the first factor, then the merged ones
+    pieces: Vec<Factor>,  // factors of the first factor without its first character
+    dead_owners: Vec<Factor>, // ascending; see HOW ENTRIES CHANGE
+    born_owners: Vec<Factor>, // ascending
+    renames: Vec<(usize, usize, Option<Slot>)>, // (old id, new id, slot of the entry) of a grown block
     stats: ChainStats,
 }
 
@@ -555,6 +559,7 @@ impl<'a> RotationSweep<'a> {
             text,
             text_len,
             window_start: 0,
+            lyndon_len: Vec::new(),
             prefix_hash,
             base_power,
             factors: VecDeque::from(vec![Factor {
@@ -565,9 +570,14 @@ impl<'a> RotationSweep<'a> {
             pending: vec![],
             is_pending: vec![false; text_len],
             pending_count: 0,
+            removed: vec![],
+            pieces: vec![],
+            dead_owners: vec![],
+            born_owners: vec![],
+            renames: vec![],
             stats: ChainStats::default(),
         };
-        // (conjugate, id) of the n entries, in sorted order
+        // (conjugate, id) of the text_len entries, in sorted order
         let sorted_entries: Vec<(Conjugate, u32)> = match circular_sa {
             Some(sa) => sa
                 .iter()
@@ -583,13 +593,13 @@ impl<'a> RotationSweep<'a> {
                 let mut v: Vec<(Conjugate, u32)> = (0..text_len as u32)
                     .map(|p| (conjugate_of_entry(text_len, p, &sweep.factors, 0), p))
                     .collect();
-                {
-                    let stats = &mut sweep.stats;
-                    v.sort_by(|a, b| compare_conjugates(text, text_len, &a.0, &b.0, stats).1);
-                }
+                let stats = &mut sweep.stats;
+                v.sort_by(|a, b| compare_conjugates(text, text_len, &a.0, &b.0, stats).1);
                 v
             }
         };
+        sweep.lyndon_len =
+            lyndon_table(text, &sa_to_rank(&sorted_entries.iter().map(|(_, id)| *id as usize).collect::<Vec<_>>()));
         let lcps: Vec<u32> = (0..text_len - 1)
             .map(|j| {
                 compare_conjugates(
@@ -718,35 +728,6 @@ impl<'a> RotationSweep<'a> {
         self.pending_count = 0;
     }
 
-    /// Lyndon factorization (Duval's algorithm) of text[start..start+len] (absolute positions),
-    /// returned as factors in left-to-right order. Equal factors are returned one after another.
-    fn lyndon_factors_of(&self, start: usize, len: usize) -> Vec<Factor> {
-        let ch = |k: usize| self.text[wrap_index(start + k, self.text_len)];
-        // standard Duval: `i` = start of the factor group being built, `j` = scan position, `k` = position
-        // in the group that `j` is compared against
-        let (mut out, mut i) = (Vec::new(), 0);
-        while i < len {
-            let (mut j, mut k) = (i + 1, i);
-            while j < len && ch(k) <= ch(j) {
-                if ch(k) < ch(j) {
-                    k = i;
-                } else {
-                    k += 1;
-                }
-                j += 1;
-            }
-            let piece_len = j - k;
-            while i <= k {
-                out.push(Factor {
-                    start: start + i,
-                    len: piece_len,
-                });
-                i += piece_len;
-            }
-        }
-        out
-    }
-
     /// Finds the slot of entry `id` in the sorted list as it was BEFORE this rotation
     /// (the list has not been modified yet; only `factors` has). `removed` = old factors that
     /// vanished. The comparison treats `id` itself as Equal, so the search stops on it and never
@@ -795,246 +776,199 @@ impl<'a> RotationSweep<'a> {
         slot
     }
 
+    /// Takes entry `id` out of the sorted list (searching in the list as it was before this
+    /// rotation). If `requeue`, the entry is inserted again later with its new word.
+    /// An id that is already pending is not in the list: nothing to remove (this also makes a
+    /// second visit of the same risky id harmless).
+    fn delete_entry(
+        &mut self,
+        id: usize,
+        requeue: bool,
+        old_window_start: usize,
+        removed: &[Factor],
+    ) {
+        if self.is_pending[id] {
+            if !requeue {
+                self.unmark_pending(id);
+            }
+            return;
+        }
+        let slot = self.locate_entry_before_rotation(old_window_start, id, removed);
+        self.sorted.remove(slot);
+        self.stats.phys_del += 1;
+        if requeue {
+            self.stats.risky += 1;
+            self.mark_pending(id);
+        }
+    }
+
     /// One left rotation: window_start -> window_start + 1. Updates the factors and the sorted list.
     /// `best` = fewest runs found so far (used to decide whether the re-insertions can be skipped).
     fn rotate_left_once(&mut self, prune: bool, best: usize) {
         let (text_len, old_start) = (self.text_len, self.window_start);
         self.stats.steps += 1;
+        let max_lcp = self.sorted.max_lcp; // read before any deletion changes it
+        self.stats.lmax_sum += max_lcp as u64;
+        let mut removed = std::mem::take(&mut self.removed);
+        let mut pieces = std::mem::take(&mut self.pieces);
+        let mut dead_owners = std::mem::take(&mut self.dead_owners);
+        let mut born_owners = std::mem::take(&mut self.born_owners);
+        (
+            removed.clear(),
+            pieces.clear(),
+            dead_owners.clear(),
+            born_owners.clear(),
+        );
 
-        /* STEP A
-            pop the first factor
-            check whether it is repeated (first_block_has_copy)
-            add it to anyway the removed ones
-            if it has more than one character, run duval on the rest of it to get the new factors and put them in added
-            add the moved character as a new one-character factor at the back
-            merge at the back while the second-to-last factor is smaller than the last one
-            first_block_survives = first_block_has_copy && the second copy was not merged away
-        */
-        // Does the first block have a second copy? (the first factor equals the second one)
-        let first_block_has_copy =
-            self.factors.len() > 1 && self.same_factor(self.factors[0], self.factors[1]);
+        // ---- A. new factorization: split the first factor, append the moved char, merge at the back ----
+        let old_count = self.factors.len();
         let first = self.factors.pop_front().unwrap();
-        let mut removed: Vec<Factor> = vec![first]; // old factors that no longer exist
-        let mut added: Vec<Factor> = Vec::new(); // new factors that did not exist
-        if first.len > 1 {
-            // the rest of the first factor (without its first char) factorizes into new factors
-            let pieces = self.lyndon_factors_of(first.start + 1, first.len - 1);
-            for &piece in pieces.iter().rev() {
-                self.factors.push_front(piece);
-            }
-            added.extend(pieces);
+        // The first block survives iff it has a second copy: a merged factor starts with a letter
+        // smaller than the moved char, the copy starts with that char (I1), so it is never merged.
+        let first_block_survives = old_count > 1 && self.same_factor(first, self.factors[0]);
+        // pieces = the Lyndon factors of first[1..], by walking the Lyndon table (I2)
+        let mut p = first.start + 1;
+        while p < first.end() {
+            let len = self.lyndon_len[p];
+            pieces.push(Factor { start: p, len });
+            p += len;
         }
-        // the moved char becomes a new one-character factor at the back (absolute position is old_start + text_len)
-        let moved_char = Factor {
+        for &piece in pieces.iter().rev() {
+            self.factors.push_front(piece);
+        }
+        // the moved char becomes a new one-char factor at the back, then merges with the factors before it
+        let mut back = Factor {
             start: old_start + text_len,
             len: 1,
         };
-        self.factors.push_back(moved_char);
-        added.push(moved_char);
-        // merge at the back while the second-to-last factor is smaller than the last one
-        while self.factors.len() >= 2 {
-            let (last, before_last) = (
-                self.factors[self.factors.len() - 1],
-                self.factors[self.factors.len() - 2],
-            );
-            if !factor_is_smaller(self.text, text_len, before_last, last) {
+        self.factors.push_back(back);
+        let mut old_left = old_count - 1; // old factors between the pieces and `back`
+        while old_left > 0 {
+            let before = self.factors[self.factors.len() - 2];
+            if !factor_is_smaller(self.text, text_len, before, back) {
                 break;
             }
             self.factors.pop_back();
-            self.factors.pop_back();
-            for f in [last, before_last] {
-                // a factor created in this same step and merged away again just cancels out
-                if let Some(k) = added.iter().position(|&x| x == f) {
-                    added.swap_remove(k);
-                } else {
-                    removed.push(f);
-                }
-            }
-            let merged = Factor {
-                start: before_last.start,
-                len: before_last.len + last.len,
+            removed.push(before); // the merged factors are collected from the back: descending
+            old_left -= 1;
+            back = Factor {
+                start: before.start,
+                len: before.len + back.len,
             };
-            self.factors.push_back(merged);
-            added.push(merged);
+            
+            *self.factors.back_mut().unwrap() = back.clone();
         }
-        removed.sort();
-        added.sort();
-        // the first block survives (as a factor value) if it had a second copy and that copy was not merged away
-        let first_block_survives = first_block_has_copy
-            && removed
-                .binary_search(&Factor {
-                    start: first.start + first.len,
-                    len: first.len,
-                })
-                .is_err();
-
-        /* STEP B
-            dead factors = the last occurrence of each removed factor, equal factors form a "block". entries refer to the last occurrence
-                this skips the first block if it "survives" (first_block_survives)
-            growth = new factors in the back may extend the last non-merged block
-            born factors = the last occurrence of each added factor, equal factors form a "block".
-        */
-        // `dead_factors`: for each block of equal removed factors, its LAST occurrence (it owns the
-        // entries). A block dies completely, except the first block when it survives.
-        let mut dead_factors: Vec<Factor> = Vec::new();
-        let mut k = removed.len();
-        while k > 0 {
-            let block_owner = removed[k - 1];
-            k -= 1;
-            while k > 0 && self.same_factor(removed[k - 1], block_owner) {
-                k -= 1;
-            }
-            if !(first_block_survives && self.same_factor(block_owner, first)) {
-                dead_factors.push(block_owner);
-            }
-        }
-        // Growth: the new back factor equals the factor before it, so it only extends that block
-        // (the entries of the block must move from the old last occurrence to the new one).
-        let back = *self.factors.back().unwrap();
-        let mut growth: Option<(Factor, Factor)> = None; // (old last occurrence, new last occurrence)
-        if self.factors.len() >= 2 {
-            let before_back = self.factors[self.factors.len() - 2];
-            if added.binary_search(&before_back).is_err() && self.same_factor(before_back, back) {
-                growth = Some((before_back, back));
-                added.retain(|&f| f != back);
-            }
-        }
-        // `born_factors`: for each block of equal added factors, its LAST occurrence (the owner).
-        let mut born_factors: Vec<Factor> = Vec::new();
-        let mut k = 0;
-        while k < added.len() {
-            let mut j = k;
-            while j + 1 < added.len()
-                && added[j + 1].start == added[j].start + added[j].len
-                && self.same_factor(added[j + 1], added[k])
-            {
-                j += 1;
-            }
-            born_factors.push(added[j]);
-            k = j + 1;
-        }
+        // (I1: if no old factor is left, the factor before `back` is a piece, which is never smaller)
+        debug_assert!(
+            old_left > 0
+                || self.factors.len() < 2
+                || !factor_is_smaller(
+                    self.text,
+                    text_len,
+                    self.factors[self.factors.len() - 2],
+                    back
+                )
+        );
+        removed.push(first);
+        removed.reverse(); // ascending: first, then the merged factors in text order
         self.window_start = old_start + 1;
 
-        /* STEP C
-            we refer to each factor's conjugate as its "entry", they are the conjugates that start between the factor's first and last character
-            old ranges = positions of entries of dead factors; delete
-            new ranges = positions of entries of born factors; insert
-            kept ranges = entries that "survived" the rotation, their place in the order may change
-        */
-        let mut old_ranges: Vec<(usize, usize)> = Vec::new(); // positions that were entries of dead factors
-        for f in &dead_factors {
-            if f.start == old_start {
-                old_ranges.push((old_start + text_len, old_start + text_len + 1));
-                if f.len > 1 {
-                    old_ranges.push((old_start + 1, old_start + f.len));
-                }
-            } else {
-                old_ranges.push((f.start, f.start + f.len));
+        // ---- B. which owners die, which are born (both lists ascending, disjoint) ----
+        // Dead owners: the first factor without a second copy, and every merged block (by its last
+        // copy). The first position of the window leaves at the front and re-enters at the back,
+        // so the first factor's positions are [old_start+1, first.end) and old_start+text_len.
+        let dead_first = !first_block_survives;
+        if dead_first && first.len > 1 {
+            dead_owners.push(Factor {
+                start: old_start + 1,
+                len: first.len - 1,
+            });
+        }
+        // If `back` equals the old factor before it, no new factor is born: that block just grows,
+        // and its entries (already in the list) are renamed to the new last copy, see below.
+        let mut grown_block = None;
+        if old_left > 0 {
+            let before_back = self.factors[self.factors.len() - 2];
+            if self.same_factor(before_back, back) {
+                grown_block = Some(before_back);
+                self.stats.growth += 1;
             }
         }
-        let mut new_ranges: Vec<(usize, usize)> = born_factors
-            .iter()
-            .map(|f| (f.start, f.start + f.len))
-            .collect(); // positions that must be entries now
-        old_ranges.sort();
-        new_ranges.sort();
-        let dead_ranges = range_difference(&old_ranges, &new_ranges); // entries to delete for good
-        let born_ranges = range_difference(&new_ranges, &old_ranges); // entries to insert
-        let kept_ranges = range_intersection(&old_ranges, &new_ranges); // entries that exist before and after, with a changed word
-
-        /* STEP D
-            some entries that are kept may change place in the sorted order, but most of provably do not.
-                an entry (the conjugate of a factor) only changes after its factor's end
-                the entry only moves if its word changes within max_lcp characters
-                    max_lcp is the largest Longest Common Prefix (LCP) of any two adjacent entries in the sorted list
-                    of course, a change after max_lcp cannot change the order
-                we filter out the entries whose factor's end is more than max_lcp characters far away
-            the ones that actually may move are the "risky" entries
-        */
-        let max_lcp = self.sorted.max_lcp;
-        self.stats.lmax_sum += max_lcp as u64;
-        let rename_old_start = |p: usize| {
-            if p == old_start {
-                old_start + text_len
-            } else {
-                p
+        for k in 1..removed.len() {
+            if k + 1 == removed.len() || !self.same_factor(removed[k], removed[k + 1]) {
+                dead_owners.push(removed[k]);
             }
+        }
+        if dead_first {
+            dead_owners.push(Factor {
+                start: old_start + text_len,
+                len: 1,
+            });
+        }
+        // Born owners: the last piece of each block of equal pieces, and `back` unless it only extends a block.
+        for k in 0..pieces.len() {
+            if k + 1 == pieces.len() || !self.same_factor(pieces[k], pieces[k + 1]) {
+                born_owners.push(pieces[k]);
+            }
+        }
+        if grown_block.is_none() {
+            born_owners.push(back);
+        }
+
+        // ---- C. delete the entries that exist only before the rotation ----
+        // (positions of dead owners that are not positions of born owners)
+        let mut dead_count = 0u64;
+        for d in &dead_owners {
+            for_each_uncovered(d.start, d.end(), &born_owners, |q| {
+                self.delete_entry(q % text_len, false, old_start, &removed);
+                dead_count += 1;
+            });
+        }
+        self.stats.dead += dead_count;
+
+        // ---- D. entries that exist before and after ("kept") but may change place ----
+        // A kept entry only moves if its word changes within max_lcp characters, i.e. it lies within
+        // max_lcp of the end of its old or new factor; its letter changes at the first position of a
+        // factor. Such entries are deleted now (old order) and inserted later (new order).
+        let owners_contain = |owners: &[Factor], q: usize| {
+            let k = owners.partition_point(|f| f.start <= q);
+            k > 0 && q < owners[k - 1].end()
         };
-        let mut candidates: Vec<usize> = Vec::new();
-        for f in &dead_factors {
-            for p in (f.start + f.len).saturating_sub(max_lcp).max(f.start)..f.start + f.len {
-                candidates.push(rename_old_start(p));
-            }
-            candidates.push(rename_old_start(f.start));
-        }
-        for f in &born_factors {
-            for p in (f.start + f.len).saturating_sub(max_lcp).max(f.start)..f.start + f.len {
-                candidates.push(p);
-            }
-            candidates.push(f.start);
-        }
-        candidates.sort_unstable();
-        candidates.dedup();
-        let risky: Vec<usize> = candidates
-            .into_iter()
-            .filter(|&p| range_contains(&kept_ranges, p))
-            .collect();
-        self.stats.risky += risky.len() as u64;
-
-        /* STEP E
-            delete dead and risky entries, queue re-insertions of the risky ones
-            mark the born entries as pending (they will be inserted later)
-            if a block grows at the back, change its entries IDs (rename) to the new last occurrence
-        */
-        let mut to_delete: Vec<(usize, bool)> = Vec::new(); // (id, must be re-inserted afterwards?)
-        for &(lo, hi) in &dead_ranges {
-            for p in lo..hi {
-                to_delete.push((p % text_len, false));
-            }
-        }
-        self.stats.dead += to_delete.len() as u64;
-        for &p in &risky {
-            to_delete.push((p % text_len, true));
-        }
-        for &(id, requeue) in &to_delete {
-            if self.is_pending[id] {
-                if !requeue {
-                    self.unmark_pending(id);
+        for f in dead_owners.iter().chain(born_owners.iter()) {
+            let near_end = f.end().saturating_sub(max_lcp).max(f.start)..f.end();
+            for q in near_end.chain([f.start]) {
+                if owners_contain(&dead_owners, q) && owners_contain(&born_owners, q) {
+                    self.delete_entry(q % text_len, true, old_start, &removed);
                 }
-                continue;
-            } // not in the list right now
-            let slot = self.locate_entry_before_rotation(old_start, id, &removed);
-            self.sorted.remove(slot);
-            self.stats.phys_del += 1;
-            if requeue {
-                self.mark_pending(id);
             }
         }
-        for &(lo, hi) in &born_ranges {
-            for p in lo..hi {
-                self.mark_pending(p % text_len);
-            }
-            self.stats.ins += (hi - lo) as u64;
+
+        // ---- E. entries that exist only after the rotation: queue them for insertion ----
+        for b in &born_owners {
+            for_each_uncovered(b.start, b.end(), &dead_owners, |q| {
+                self.mark_pending(q % text_len);
+                self.stats.ins += 1;
+            });
         }
-        if let Some((old_last, new_last)) = growth {
-            // the block grows at the back: rename its ids (+|g|)
-            self.stats.growth += 1;
-            // first locate every entry in the unchanged list, only then rename (no lookup sees a half-renamed list)
-            let renames: Vec<(usize, usize, Option<Slot>)> = (0..new_last.len)
-                .map(|k| {
-                    let (old_id, new_id) = (
-                        (old_last.start + k) % text_len,
-                        (new_last.start + k) % text_len,
-                    );
-                    let slot = if self.is_pending[old_id] {
-                        None
-                    } else {
-                        Some(self.locate_entry_before_rotation(old_start, old_id, &removed))
-                    };
-                    (old_id, new_id, slot)
-                })
-                .collect();
-            for (old_id, new_id, slot) in renames {
+
+        // ---- E2. a grown block: its entries move to the new last copy, ids shift by |back| ----
+        // The slots are located first, in the unchanged list; only then are the ids changed (a lookup
+        // must never see an entry whose id already points into the new structure). The order of the
+        // entries does not change: they are the same conjugates of the same factor.
+        if let Some(old_last) = grown_block {
+            let mut renames = std::mem::take(&mut self.renames);
+            renames.clear();
+            for k in 0..back.len {
+                let (old_id, new_id) =
+                    ((old_last.start + k) % text_len, (back.start + k) % text_len);
+                let slot = if self.is_pending[old_id] {
+                    None
+                } else {
+                    Some(self.locate_entry_before_rotation(old_start, old_id, &removed))
+                };
+                renames.push((old_id, new_id, slot));
+            }
+            for &(old_id, new_id, slot) in &renames {
                 match slot {
                     Some(s) => self.sorted.chunks[s.0][s.1].id = new_id as u32,
                     None => {
@@ -1043,14 +977,15 @@ impl<'a> RotationSweep<'a> {
                     }
                 }
             }
+            self.renames = renames;
         }
 
-        /* STEP F
-            after step E, the list is sorted and correct, but it is missing some entries, so its runs count is a lower bound
-            we must insert the pending entries.
-            However, we may want to "prune" (enabled by a input flag):
-                if the current run count is already >= best, we can skip the insertions and defer them to the next rotation
-        */
+        self.removed = removed;
+        self.pieces = pieces;
+        self.dead_owners = dead_owners;
+        self.born_owners = born_owners;
+
+        // ---- F. insert, unless this conjugate provably cannot beat `best` ----
         if prune && self.pending_count > 0 && self.runs() >= best {
             self.stats.deferred_steps += 1;
         } else {
@@ -1191,14 +1126,14 @@ pub fn chain_min_runs_sa(
     verify: bool,
 ) -> (usize, usize, ChainStats) {
     let text_len = text.len();
+    if text_len == 0 {
+        return (0, 0, ChainStats::default());
+    }
     if text_len == 1 {
         return (0, 1, ChainStats::default());
     }
     let mut sweep = RotationSweep::new(text, circular_sa);
     let (mut best, mut best_shift) = (sweep.runs(), 0);
-    if verify {
-        assert_eq!(sweep.letters(), oracle_letters(text), "initial state");
-    }
     for _ in 0..text_len - 1 {
         let best_before = best;
         sweep.rotate_left_once(prune, best);
@@ -1250,9 +1185,6 @@ pub fn chain_min_runs_sa(
 /// Index (among the conjugates of the least rotation of the primitive root) of the first conjugate
 /// with the fewest BBWT runs. `prune` enables the certified skipping.
 pub fn optimal_bbwt_chain(input: &[u8], prune: bool) -> usize {
-    if input.is_empty() {
-        return 0;
-    }
     let (start, period) = shiloach(input);
     let text: Vec<u8> = (0..period)
         .map(|k| input[(start + k) % input.len()])
@@ -1263,9 +1195,6 @@ pub fn optimal_bbwt_chain(input: &[u8], prune: bool) -> usize {
 
 /// Same sweep, cross-checked against the oracle at every step when n <= 400, with statistics.
 pub fn online_bbwt_check(input: &[u8]) -> usize {
-    if input.is_empty() {
-        return 0;
-    }
     let (start, period) = shiloach(input);
     let text: Vec<u8> = (0..period)
         .map(|k| input[(start + k) % input.len()])
