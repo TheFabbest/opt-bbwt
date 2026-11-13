@@ -35,8 +35,8 @@ impl BitVector {
 
     /// Finds next position STRICTLY GREATER THAN pos where bit is true
     fn next(&self, pos: usize) -> usize {
-        for i in (pos + 1)..self.bits.len() {
-            if self.bits[i] {
+        for (i, &bit) in self.bits.iter().enumerate().skip(pos + 1) {
+            if bit {
                 return i;
             }
         }

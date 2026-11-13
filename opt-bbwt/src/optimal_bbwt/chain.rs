@@ -820,12 +820,10 @@ impl<'a> RotationSweep<'a> {
         let mut pieces = std::mem::take(&mut self.pieces);
         let mut dead_owners = std::mem::take(&mut self.dead_owners);
         let mut born_owners = std::mem::take(&mut self.born_owners);
-        (
-            removed.clear(),
-            pieces.clear(),
-            dead_owners.clear(),
-            born_owners.clear(),
-        );
+        removed.clear();
+        pieces.clear();
+        dead_owners.clear();
+        born_owners.clear();
 
         // ---- A. new factorization: split the first factor, append the moved char, merge at the back ----
         let old_count = self.factors.len();
@@ -863,7 +861,7 @@ impl<'a> RotationSweep<'a> {
                 len: before.len + back.len,
             };
 
-            *self.factors.back_mut().unwrap() = back.clone();
+            *self.factors.back_mut().unwrap() = back;
         }
         // (I1: if no old factor is left, the factor before `back` is a piece, which is never smaller)
         debug_assert!(
