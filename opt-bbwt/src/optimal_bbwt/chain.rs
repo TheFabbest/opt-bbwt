@@ -1,6 +1,6 @@
+use crate::lyndon::lyndon_table;
 use crate::lyndon::shiloach;
 use crate::suffix_array::{circular_suffix_array, sa_to_rank};
-use crate::lyndon::lyndon_table;
 use std::cmp::Ordering;
 use std::collections::{HashSet, VecDeque};
 
@@ -598,8 +598,15 @@ impl<'a> RotationSweep<'a> {
                 v
             }
         };
-        sweep.lyndon_len =
-            lyndon_table(text, &sa_to_rank(&sorted_entries.iter().map(|(_, id)| *id as usize).collect::<Vec<_>>()));
+        sweep.lyndon_len = lyndon_table(
+            text,
+            &sa_to_rank(
+                &sorted_entries
+                    .iter()
+                    .map(|(_, id)| *id as usize)
+                    .collect::<Vec<_>>(),
+            ),
+        );
         let lcps: Vec<u32> = (0..text_len - 1)
             .map(|j| {
                 compare_conjugates(
@@ -855,7 +862,7 @@ impl<'a> RotationSweep<'a> {
                 start: before.start,
                 len: before.len + back.len,
             };
-            
+
             *self.factors.back_mut().unwrap() = back.clone();
         }
         // (I1: if no old factor is left, the factor before `back` is a piece, which is never smaller)
