@@ -742,7 +742,7 @@ impl RotationSweep {
                 break;
             }
             self.factors.pop_back();
-            if right_merged.map_or(true, |r| !self.same_factor(before, r)) {
+            if right_merged.is_none_or(|r| !self.same_factor(before, r)) {
                 merged_owners.push(before);
             }
             right_merged = Some(before);
